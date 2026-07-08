@@ -1,0 +1,60 @@
+services:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OCR microservice (EasyOCR + FastAPI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  ocr:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      # Set OCR_DEBUG=true to log per-page timing breakdown and full extracted text
+      OCR_DEBUG: ${OCR_DEBUG:-false}
+    # EasyOCR model cache persisted across restarts so we don't re-download
+    volumes:
+      - easyocr_models:/root/.EasyOCR
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s   # model loading can be slow on first run
+    networks:
+      - app_net
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Next.js frontend
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* vars must be baked in at build time
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Generador de Expedientes}
+        NEXT_PUBLIC_MAX_DOCUMENT_SIZE_MB: ${NEXT_PUBLIC_MAX_DOCUMENT_SIZE_MB:-50}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local        # server-side secrets (SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, …)
+    environment:
+      # Override the OCR URL so Next.js reaches the sibling container by name
+      OCR_SERVICE_URL: http://ocr:8001
+    depends_on:
+      ocr:
+        condition: service_healthy
+    networks:
+      - app_net
+
+volumes:
+  easyocr_models:
+
+networks:
+  app_net:
+    driver: bridge

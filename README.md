@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Generador de Expedientes
 
-## Getting Started
+## Project structure
 
-First, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+.
+├── frontend/           # Next.js app (UI, API routes, server actions)
+├── backend/            # Python FastAPI OCR microservice (EasyOCR)
+├── supabase/            # Supabase migrations & config
+├── docker-compose.yml   # Orchestrates frontend + ocr containers
+├── .env.local           # Local secrets (gitignored, symlinked into frontend/)
+├── .env.production       # Production secrets (gitignored, symlinked into frontend/)
+└── .env.example          # Template for the env vars above
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env.local` and `.env.production` live at the repo root as the single source of
+truth (used directly by `docker-compose.yml`'s `env_file:`), and are symlinked
+into `frontend/` because Next.js only loads `.env*` files from its own project
+root.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Getting started (local, no Docker)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local   # fill in real values
+cd frontend
+npm install
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000).
 
-To learn more about Next.js, take a look at the following resources:
+The OCR service (`backend/`) needs Python 3.11+:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8001
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Getting started (Docker)
 
-## Deploy on Vercel
+From the repo root:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+docker compose --env-file .env.local up --build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This builds both the `frontend` (Next.js, port 3000) and `ocr` (EasyOCR, port
+8001) containers.
+
+## Database (Supabase)
+
+Supabase CLI commands (`supabase start`, `supabase db push`, etc.) can be run
+from `frontend/` — the CLI walks up to find the `supabase/` folder at the repo
+root — or via the `npm run db:*` / `npm run supabase:*` scripts in
+[frontend/package.json](frontend/package.json).
