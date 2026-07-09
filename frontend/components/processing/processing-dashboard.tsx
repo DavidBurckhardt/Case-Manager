@@ -28,6 +28,10 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const handleCancel = useCallback((id: string) => {
+    setDocs((prev) => prev.filter((d) => d.id !== id))
+  }, [])
+
   const fetchDocs = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true)
     try {
@@ -59,8 +63,8 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
     if (initialDocs.length === 0) fetchDocs(false)
   }, [fetchDocs, initialDocs.length])
 
-  const active    = docs.filter((d) => !isTerminalStatus(d.processing_status))
-  const completed = docs.filter((d) => d.processing_status === 'COMPLETED')
+  const active    = docs.filter((d) => !isTerminalStatus(d.processing_status) || d.case_file?.processing_phase === 'analyzing')
+  const completed = docs.filter((d) => d.processing_status === 'COMPLETED' && d.case_file?.processing_phase !== 'analyzing')
   const errors    = docs.filter((d) => d.processing_status === 'ERROR')
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
@@ -199,7 +203,7 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
               <col className="w-20" />
               <col className="w-28" />
               <col className="w-72" />
-              <col className="w-32" />
+              <col className="w-40" />
             </colgroup>
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
@@ -212,7 +216,7 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
             </thead>
             <tbody>
               {visible.map((doc) => (
-                <ProcessingRow key={doc.id} doc={doc} />
+                <ProcessingRow key={doc.id} doc={doc} onCancel={handleCancel} />
               ))}
             </tbody>
           </table>

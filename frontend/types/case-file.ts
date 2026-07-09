@@ -18,6 +18,8 @@ export interface WorkflowStateRow {
   created_at: string
 }
 
+export type ProcessingPhase = 'preview' | 'analyzing' | 'complete'
+
 export interface CaseFileRow {
   id: string
   case_number: string
@@ -38,6 +40,7 @@ export interface CaseFileRow {
   documents_detected: string[]
   important_dates: Array<{ date: string | null; event: string }>
   legal_claim: Record<string, unknown>
+  processing_phase: ProcessingPhase
   current_status_id: string
   responsible_attorney_id: string | null
   created_by: string
@@ -182,6 +185,7 @@ export interface CaseFileSummary {
   court: string | null
   matter: string | null
   claim_amount: number | null
+  processing_phase: ProcessingPhase
   current_status: Pick<WorkflowStateRow, 'id' | 'code' | 'label'>
   responsible_attorney_id: string | null
   created_at: string

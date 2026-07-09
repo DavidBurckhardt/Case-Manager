@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ArrowLeft, FileText, User, Building2, Shield, AlertTriangle,
-  Stethoscope, Scale, Calendar, Files, AlertCircle,
+  Stethoscope, Scale, Calendar, Files, AlertCircle, Loader2, Eye,
 } from 'lucide-react'
 import { getCaseFileById } from '@/services/case-file.service'
 import { Badge } from '@/components/ui/badge'
@@ -80,7 +80,7 @@ export default async function CaseDetailPage({ params }: Props) {
     case_number, title, caption, court, jurisdiction, department,
     process_type, legal_matter, matter, filing_date, claim_amount,
     summary, confidence_overall, confidence_missing_fields,
-    documents_detected, important_dates,
+    documents_detected, important_dates, processing_phase,
     current_status, parties, plaintiff, accident, medical,
     insurance, employer, admin_proceedings, created_at,
   } = caseFile
@@ -122,6 +122,32 @@ export default async function CaseDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Processing phase banner ── */}
+      {processing_phase !== 'complete' && (
+        <div className={cn(
+          'flex items-start gap-3 rounded-xl border px-5 py-4',
+          processing_phase === 'analyzing'
+            ? 'border-blue-200 bg-blue-50 text-blue-800'
+            : 'border-amber-200 bg-amber-50 text-amber-800'
+        )}>
+          {processing_phase === 'analyzing'
+            ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+            : <Eye className="mt-0.5 h-4 w-4 shrink-0" />
+          }
+          <div>
+            <p className="text-sm font-semibold">
+              {processing_phase === 'analyzing' ? 'Deep analysis in progress' : 'Preview — limited data'}
+            </p>
+            <p className="mt-0.5 text-xs">
+              {processing_phase === 'analyzing'
+                ? 'OCR and AI extraction are running in the background. Refresh this page in a few minutes to see the full case data.'
+                : 'This case was created from a quick text scan. Some fields may be missing or inaccurate. Re-upload the document with the OCR service running for a full analysis.'
+              }
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Summary ── */}
       {summary && (

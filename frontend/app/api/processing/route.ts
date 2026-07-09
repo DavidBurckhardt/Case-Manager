@@ -2,6 +2,7 @@ import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ok, handleError } from '@/lib/api/response'
 import { ApiError } from '@/services/case-file.service'
+import { recoverOrphanedCases } from '@/lib/startup-recovery'
 
 /**
  * GET /api/processing
@@ -14,6 +15,9 @@ import { ApiError } from '@/services/case-file.service'
  *   include_terminal – 'false' to exclude COMPLETED/ERROR (default: include)
  */
 export async function GET(request: NextRequest) {
+  // Fire-and-forget: runs once per process to reset stuck 'analyzing' cases
+  recoverOrphanedCases()
+
   try {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -38,7 +42,7 @@ export async function GET(request: NextRequest) {
         processing_error_stage,
         processing_stage_updated_at,
         uploaded_at,
-        case_file:case_files ( id, case_number, caption )
+        case_file:case_files ( id, case_number, caption, processing_phase )
       `)
       .is('deleted_at', null)
       .order('uploaded_at', { ascending: false })

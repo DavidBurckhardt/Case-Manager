@@ -1,15 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   FileText, FileImage, FileCode2, File,
   CheckCircle2, XCircle, Loader2, Clock,
-  ExternalLink,
+  ExternalLink, X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ProcessingPipelineTrack } from './processing-pipeline-track'
 import type { DocumentProcessingStatus } from '@/types/document'
+import type { ProcessingPhase } from '@/types/case-file'
 
 export interface ProcessingDocument {
   id: string
@@ -21,11 +23,12 @@ export interface ProcessingDocument {
   processing_error_stage: string | null
   processing_stage_updated_at: string
   uploaded_at: string
-  case_file: { id: string; case_number: string; caption: string } | null
+  case_file: { id: string; case_number: string; caption: string; processing_phase: ProcessingPhase } | null
 }
 
 interface ProcessingRowProps {
   doc: ProcessingDocument
+  onCancel?: (id: string) => void
 }
 
 function fileIcon(ext: string) {
@@ -61,13 +64,31 @@ const STATUS_BADGE: Record<
 
 const ACTIVE_STATUSES = new Set<DocumentProcessingStatus>(['OCR_IN_PROGRESS', 'METADATA_EXTRACTION', 'CASE_GENERATION'])
 
-export function ProcessingRow({ doc }: ProcessingRowProps) {
+export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
+  const [cancelling, setCancelling] = useState(false)
   const Icon = fileIcon(doc.file_extension)
-  const badge = STATUS_BADGE[doc.processing_status]
+  const isAnalyzing = doc.processing_status === 'COMPLETED' && doc.case_file?.processing_phase === 'analyzing'
+  const isActive   = ACTIVE_STATUSES.has(doc.processing_status) || isAnalyzing
+  const isQueued   = doc.processing_status === 'UPLOADED'
+  const isError    = doc.processing_status === 'ERROR'
+  const isDone     = doc.processing_status === 'COMPLETED' && !isAnalyzing
+  const canCancel  = (ACTIVE_STATUSES.has(doc.processing_status) || isQueued) && !cancelling
+
+  const badge = isAnalyzing
+    ? { label: 'Analyzing', icon: Loader2, className: 'bg-blue-500/15 text-blue-700' }
+    : STATUS_BADGE[doc.processing_status]
   const BadgeIcon = badge.icon
-  const isActive = ACTIVE_STATUSES.has(doc.processing_status)
-  const isError  = doc.processing_status === 'ERROR'
-  const isDone   = doc.processing_status === 'COMPLETED'
+
+  async function handleCancel() {
+    if (!canCancel) return
+    setCancelling(true)
+    try {
+      await fetch(`/api/documents/${doc.id}`, { method: 'DELETE' })
+      onCancel?.(doc.id)
+    } catch {
+      setCancelling(false)
+    }
+  }
 
   return (
     <tr
@@ -124,19 +145,34 @@ export function ProcessingRow({ doc }: ProcessingRowProps) {
         <ProcessingPipelineTrack
           status={doc.processing_status}
           errorStage={doc.processing_error_stage}
+          processingPhase={doc.case_file?.processing_phase ?? null}
           className="w-64"
         />
       </td>
 
-      {/* Status badge */}
-      <td className="px-4 py-3 text-right">
-        <Badge
-          variant="outline"
-          className={cn('inline-flex items-center gap-1 border-0 px-2 py-0.5 text-[11px] font-medium', badge.className)}
-        >
-          <BadgeIcon className={cn('h-3 w-3', isActive && 'animate-spin')} aria-hidden="true" />
-          {badge.label}
-        </Badge>
+      {/* Status badge + cancel */}
+      <td className="px-4 py-3">
+        <div className="flex items-center justify-end gap-2">
+          <Badge
+            variant="outline"
+            className={cn('inline-flex items-center gap-1 border-0 px-2 py-0.5 text-[11px] font-medium', badge.className)}
+          >
+            <BadgeIcon className={cn('h-3 w-3', isActive && 'animate-spin')} aria-hidden="true" />
+            {badge.label}
+          </Badge>
+          {canCancel && (
+            <button
+              onClick={handleCancel}
+              title="Cancel processing"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {cancelling && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          )}
+        </div>
       </td>
     </tr>
   )

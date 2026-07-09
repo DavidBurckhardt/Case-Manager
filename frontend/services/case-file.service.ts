@@ -110,7 +110,7 @@ export async function listCaseFiles(query: ListCaseFilesQuery): Promise<ListCase
     .from('case_files')
     .select(
       `id, case_number, caption, title, jurisdiction, court, matter, claim_amount,
-       responsible_attorney_id, created_at, updated_at,
+       processing_phase, responsible_attorney_id, created_at, updated_at,
        current_status:workflow_states(id, code, label)`,
       { count: 'exact' }
     )

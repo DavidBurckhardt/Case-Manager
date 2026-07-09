@@ -4,22 +4,25 @@ import { CheckCircle2, Loader2, XCircle, Circle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PIPELINE_STAGES, stageIndex } from './pipeline-stages'
 import type { DocumentProcessingStatus } from '@/types/document'
+import type { ProcessingPhase } from '@/types/case-file'
 
 interface ProcessingPipelineTrackProps {
   status: DocumentProcessingStatus
   errorStage?: string | null
+  processingPhase?: ProcessingPhase | null
   className?: string
 }
 
-export function ProcessingPipelineTrack({ status, errorStage, className }: ProcessingPipelineTrackProps) {
-  const currentIdx = stageIndex(status, errorStage)
+export function ProcessingPipelineTrack({ status, errorStage, processingPhase, className }: ProcessingPipelineTrackProps) {
+  const currentIdx = stageIndex(status, errorStage, processingPhase)
   const isFailed = status === 'ERROR'
 
   return (
     <ol aria-label="Processing pipeline" className={cn('flex items-start gap-0', className)}>
       {PIPELINE_STAGES.map((stage, i) => {
-        const isDone    = isFailed ? i < currentIdx : (status === 'COMPLETED' ? true : i < currentIdx)
-        const isActive  = !isFailed && i === currentIdx && status !== 'COMPLETED'
+        const isFullyDone = status === 'COMPLETED' && processingPhase !== 'analyzing'
+        const isDone    = isFailed ? i < currentIdx : (isFullyDone ? i <= currentIdx : i < currentIdx)
+        const isActive  = !isFailed && i === currentIdx && !isFullyDone
         const isFailing = isFailed && i === currentIdx
         const isPending = !isDone && !isActive && !isFailing
 

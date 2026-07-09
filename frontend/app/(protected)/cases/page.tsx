@@ -109,17 +109,29 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{c.matter ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'border-0',
-                        CLOSED_CODES.has(c.current_status.code)
-                          ? 'bg-muted text-muted-foreground'
-                          : 'bg-green-500/15 text-green-700'
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'border-0',
+                          CLOSED_CODES.has(c.current_status.code)
+                            ? 'bg-muted text-muted-foreground'
+                            : 'bg-green-500/15 text-green-700'
+                        )}
+                      >
+                        {c.current_status.label}
+                      </Badge>
+                      {c.processing_phase !== 'complete' && (
+                        <Badge variant="outline" className={cn(
+                          'border-0 text-xs',
+                          c.processing_phase === 'analyzing'
+                            ? 'bg-blue-500/15 text-blue-700'
+                            : 'bg-amber-500/15 text-amber-700'
+                        )}>
+                          {c.processing_phase === 'analyzing' ? 'Analyzing…' : 'Preview'}
+                        </Badge>
                       )}
-                    >
-                      {c.current_status.label}
-                    </Badge>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{formatDate(c.updated_at)}</td>
                   <td className="px-4 py-3 text-right">
