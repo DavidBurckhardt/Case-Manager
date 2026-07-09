@@ -23,37 +23,68 @@ function normalizeId(raw: string): string {
   return raw.replace(/[-–.\s]/g, '')
 }
 
+// Valid Argentine CUIL/CUIT prefixes (first 2 digits).
+// 20,23,24,27 = natural persons; 30,33,34 = legal entities; 20–27 covers all personal variants.
+const VALID_ID_PREFIXES = new Set(['20','23','24','27','30','33','34'])
+
+function isValidArgId(normalized: string): boolean {
+  return normalized.length === 11 && VALID_ID_PREFIXES.has(normalized.slice(0, 2))
+}
+
 export function regexExtract(text: string): RegexExtraction {
   // ── Case number ──────────────────────────────────────────────────────────
-  // Patterns: 17236/26 · 292789/25 · 27-510119
+  // Prefer labeled patterns: EXPTE / Expediente / Nro. Expediente SRT
+  // Patterns: 292789/25 · 17236/26 · 27-510119
   const caseMatch =
     text.match(/\bEXPTE?\.?\s*(?:N[RO°]{0,2}\.?\s*)?(\d{4,6}\/\d{2,4})\b/i) ??
+    text.match(/\bExpediente\s*(?:SRT\s*)?(?:N[°RO]{0,2}\.?\s*)?:\s*(\d{4,6}\/\d{2,4})\b/i) ??
+    text.match(/\bNro\.?\s*Expediente[^:]*:\s*(\d{4,6}\/\d{2,4})\b/i) ??
     text.match(/\b(\d{4,6}\/\d{2,4})\b/) ??
-    text.match(/\b(\d{2}-\d{5,7})\b/)
-  const case_number = caseMatch?.[1] ?? null
+    text.match(/\bSiniestro\s*N[°º]?\s*(\d{2}[-–\s]\d{5,7})\b/i) ??
+    text.match(/\b(\d{2}[-–]\d{5,7})\b/)
+  const case_number = caseMatch?.[1]?.replace(/\s/g, '-') ?? null
 
-  // ── Filing / event dates — pick the FIRST date found ────────────────────
-  // Format: 23/02/2026 or 2026-02-23 or "23 de febrero de 2026"
+  // ── Filing / event dates ─────────────────────────────────────────────────
+  // Strategy: prefer labeled accident/filing dates; fall back to first date ≥ 2020
+  // (which skips birth dates pre-2000 and hire dates pre-2020 in most cases).
+  // Skipped label contexts: "Nacimiento", "Ingreso a Empresa", "Alta Médica" endings.
   let filing_date: string | null = null
 
-  const dateSlashMatch = text.match(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/)
-  if (dateSlashMatch) {
-    const [, d, m, y] = dateSlashMatch
-    filing_date = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  function slashToISO(d: string, mo: string, y: string): string {
+    return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`
   }
 
-  if (!filing_date) {
-    const dateISOMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/)
-    if (dateISOMatch) filing_date = dateISOMatch[0]
+  // 1. Look for explicitly labeled accident/event date
+  const accidentDateMatch =
+    text.match(/Fecha\s+del?\s+accidente\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i) ??
+    text.match(/Fecha\s+(?:de\s+)?inicio\s+tr[aá]mite\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i) ??
+    text.match(/Fecha\s+de\s+emisi[oó]n\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i)
+  if (accidentDateMatch) {
+    const [, d, mo, y] = accidentDateMatch
+    filing_date = slashToISO(d, mo, y)
   }
 
+  // 2. First slash date with year ≥ 2020 (avoids birth/hire dates)
   if (!filing_date) {
-    const dateTextMatch = text.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i)
-    if (dateTextMatch) {
-      const month = MONTHS_ES[dateTextMatch[2].toLowerCase()]
-      if (month) {
-        filing_date = `${dateTextMatch[3]}-${month}-${dateTextMatch[1].padStart(2, '0')}`
-      }
+    for (const m of text.matchAll(/\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g)) {
+      const [, d, mo, y] = m
+      if (parseInt(y) >= 2020) { filing_date = slashToISO(d, mo, y); break }
+    }
+  }
+
+  // 3. ISO date fallback
+  if (!filing_date) {
+    for (const m of text.matchAll(/\b(\d{4})-(\d{2})-(\d{2})\b/g)) {
+      if (parseInt(m[1]) >= 2020) { filing_date = m[0]; break }
+    }
+  }
+
+  // 4. Spelled-out date ("23 de febrero de 2026")
+  if (!filing_date) {
+    const m = text.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i)
+    if (m && parseInt(m[3]) >= 2020) {
+      const month = MONTHS_ES[m[2].toLowerCase()]
+      if (month) filing_date = `${m[3]}-${month}-${m[1].padStart(2, '0')}`
     }
   }
 
@@ -64,23 +95,28 @@ export function regexExtract(text: string): RegexExtraction {
   if (moneyMatches.length) {
     const amounts = moneyMatches.map((m) => {
       const raw = m[1]
-      // Argentine format: dots as thousands sep, comma as decimal
       const normalized = raw.includes(',')
         ? raw.replace(/\./g, '').replace(',', '.')
         : raw.replace(/,/g, '')
       return parseFloat(normalized)
     }).filter((n) => !isNaN(n) && n > 0)
-
     if (amounts.length) claim_amount = Math.max(...amounts)
   }
 
   // ── CUIL/CUIT — format XX-XXXXXXXX-X or 11 digits ───────────────────────
+  // Validate prefixes to exclude phone numbers (54-...) and other false positives.
   const idMatches = [...text.matchAll(/\b(\d{2}[-–]\d{8}[-–]\d|\d{11})\b/g)]
-  const ids = idMatches.map((m) => normalizeId(m[1])).filter((id) => id.length === 11)
+  const ids = idMatches
+    .map((m) => normalizeId(m[1]))
+    .filter(isValidArgId)
 
-  // Heuristic: first ID tends to be plaintiff CUIL, others may be CUIT
-  const cuil = ids[0] ?? null
-  const cuit = ids.find((id, i) => i > 0) ?? ids[0] ?? null
+  // Heuristic: first valid ID is plaintiff CUIL (personal prefix 20/23/24/27);
+  // first valid company ID is CUIT (prefix 30/33/34).
+  const PERSONAL_PREFIXES = new Set(['20','23','24','27'])
+  const COMPANY_PREFIXES  = new Set(['30','33','34'])
+
+  const cuil = ids.find((id) => PERSONAL_PREFIXES.has(id.slice(0, 2))) ?? ids[0] ?? null
+  const cuit = ids.find((id) => COMPANY_PREFIXES.has(id.slice(0, 2))) ?? null
 
   // ── Title — look for "APELLIDO c/ EMPRESA" pattern ──────────────────────
   const titleMatch = text.match(/([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑA-Za-záéíóúñ ,]+\s+[Cc]\/\s*[A-ZÁÉÍÓÚÑ].{5,80}?)\s*(?:\n|$|S\/)/m)
