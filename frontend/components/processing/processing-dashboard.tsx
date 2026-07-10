@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ProcessingRow, type ProcessingDocument } from './processing-card'
 import { isTerminalStatus } from '@/types/document'
+import { apiFetch } from '@/lib/api-client'
 
 type FilterTab = 'active' | 'completed' | 'errors' | 'all'
 
@@ -43,7 +44,7 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
   const fetchDocs = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true)
     try {
-      const res = await fetch('/api/processing')
+      const res = await apiFetch('/processing')
       if (res.ok) {
         const data: ProcessingDocument[] = await res.json()
         setDocs(data)

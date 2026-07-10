@@ -33,7 +33,9 @@ RUN pip install --no-cache-dir --timeout 120 --retries 5 \
       pdf2image==1.17.0 \
       Pillow==10.4.0 \
       python-multipart==0.0.9 \
-      numpy==1.26.4
+      numpy==1.26.4 \
+      nats-py==2.9.0 \
+      httpx==0.27.2
 
 # Pre-download EasyOCR models at build time so the container starts instantly.
 # Models are saved to /root/.EasyOCR (default cache dir).

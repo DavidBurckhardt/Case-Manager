@@ -1,26 +1,79 @@
 services:
   # ─────────────────────────────────────────────────────────────────────────────
-  # OCR microservice (EasyOCR + FastAPI)
+  # NATS + JetStream — message broker between the API and the OCR worker
+  # ─────────────────────────────────────────────────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    command: ["-js", "-m", "8222"]   # -js: JetStream, -m: HTTP monitoring on 8222
+    ports:
+      - "4222:4222"   # client
+      - "8222:8222"   # monitoring / healthz
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_net
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # OCR microservice (EasyOCR) — HTTP endpoint + NATS JetStream worker
   # ─────────────────────────────────────────────────────────────────────────────
   ocr:
     build:
-      context: ./backend
+      context: ./backend/ocr
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "8001:8001"
     environment:
-      # Set OCR_DEBUG=true to log per-page timing breakdown and full extracted text
       OCR_DEBUG: ${OCR_DEBUG:-false}
-    # EasyOCR model cache persisted across restarts so we don't re-download
+      NATS_URL: nats://nats:4222
+      NATS_ENABLED: "true"
     volumes:
       - easyocr_models:/root/.EasyOCR
+    depends_on:
+      nats:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s   # model loading can be slow on first run
+    networks:
+      - app_net
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # API gateway (NestJS) — single entry point to the backend
+  # ─────────────────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env.local        # SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, OPENAI_MODEL, SUPABASE_STORAGE_BUCKET…
+    environment:
+      PORT: 3001
+      CORS_ORIGIN: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # The API reads SUPABASE_URL / SUPABASE_ANON_KEY; map them from the NEXT_PUBLIC_* names.
+      SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      NATS_URL: nats://nats:4222
+      SIGNED_URL_EXPIRY_SECONDS: ${SIGNED_URL_EXPIRY_SECONDS:-3600}
+    depends_on:
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     networks:
       - app_net
 
@@ -38,6 +91,8 @@ services:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Generador de Expedientes}
         NEXT_PUBLIC_MAX_DOCUMENT_SIZE_MB: ${NEXT_PUBLIC_MAX_DOCUMENT_SIZE_MB:-50}
+        # Base URL of the API gateway, called from the browser
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001}
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -47,6 +102,8 @@ services:
       # Override the OCR URL so Next.js reaches the sibling container by name
       OCR_SERVICE_URL: http://ocr:8001
     depends_on:
+      api:
+        condition: service_healthy
       ocr:
         condition: service_healthy
     networks:

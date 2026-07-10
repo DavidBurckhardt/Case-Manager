@@ -75,7 +75,7 @@ export default async function DashboardPage() {
           </span>
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <DocumentUploader uploadUrl="/api/documents/upload" />
+          <DocumentUploader uploadUrl={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/documents/upload`} />
         </div>
       </section>
 

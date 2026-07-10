@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react'
 import { ALLOWED_MIME_TYPE_LIST, ALLOWED_EXTENSIONS } from '@/constants/storage'
 import type { AllowedMimeType } from '@/constants/storage'
 import type { UploadFileState, CaseFileDocument } from '@/types/document'
+import { getAccessToken } from '@/lib/api-client'
 
 const MAX_MB = Number(process.env.NEXT_PUBLIC_MAX_DOCUMENT_SIZE_MB ?? 25)
 const MAX_BYTES = MAX_MB * 1024 * 1024
@@ -20,7 +21,8 @@ export function validateClientFile(file: File): string | null {
 function uploadWithProgress(
   url: string,
   formData: FormData,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  authToken?: string | null
 ): Promise<Response> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -44,6 +46,9 @@ function uploadWithProgress(
     xhr.addEventListener('abort', () => reject(new Error('Upload cancelled.')))
 
     xhr.open('POST', url)
+    // Cross-origin uploads to the API gateway authenticate with the Supabase JWT.
+    // Same-origin Next.js routes use cookies and simply ignore this header.
+    if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)
     xhr.send(formData)
   })
 }
@@ -87,9 +92,10 @@ export function useDocumentUpload({ uploadUrl, onUploadComplete }: UseDocumentUp
       formData.append('files', state.file)
 
       try {
+        const token = await getAccessToken()
         const response = await uploadWithProgress(uploadUrl, formData, (pct) => {
           updateFile(index, { progress: pct })
-        })
+        }, token)
 
         console.log(`[use-document-upload] "${state.file.name}" response status=${response.status}`)
 
@@ -137,10 +143,11 @@ export function useDocumentUpload({ uploadUrl, onUploadComplete }: UseDocumentUp
     console.log(`[use-document-upload] uploading ${pendingIndices.length} file(s) as one batch → ${uploadUrl}`)
 
     try {
+      const token = await getAccessToken()
       // Track progress against the combined upload
       const response = await uploadWithProgress(uploadUrl, formData, (pct) => {
         pendingIndices.forEach((i) => updateFile(i, { progress: pct }))
-      })
+      }, token)
 
       console.log(`[use-document-upload] batch response status=${response.status}`)
 
