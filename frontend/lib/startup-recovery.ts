@@ -18,6 +18,7 @@ export async function recoverOrphanedCases(): Promise<void> {
       .from('case_files')
       .update({ processing_phase: 'preview' })
       .eq('processing_phase', 'analyzing')
+      .lt('updated_at', new Date(Date.now() - 30 * 60 * 1000).toISOString())
       .select('id, case_number')
 
     if (error) {

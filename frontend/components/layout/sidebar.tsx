@@ -60,7 +60,7 @@ export function Sidebar({ userRole }: SidebarProps) {
       </div>
 
       {/* Nav groups */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6" aria-label="Navegación principal">
         {visibleGroups.map((group, i) => (
           <div key={i} className="space-y-1">
             {group.label && (

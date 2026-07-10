@@ -23,7 +23,14 @@ export interface ProcessingDocument {
   processing_error_stage: string | null
   processing_stage_updated_at: string
   uploaded_at: string
-  case_file: { id: string; case_number: string; caption: string; processing_phase: ProcessingPhase } | null
+  case_file: {
+    id: string
+    case_number: string
+    caption: string
+    processing_phase: ProcessingPhase
+    phase2_docs_total: number
+    phase2_docs_completed: number
+  } | null
 }
 
 interface ProcessingRowProps {
@@ -54,11 +61,11 @@ const STATUS_BADGE: Record<
   DocumentProcessingStatus,
   { label: string; icon: typeof Loader2; className: string }
 > = {
-  UPLOADED:             { label: 'Queued',      icon: Clock,         className: 'bg-muted text-muted-foreground' },
-  OCR_IN_PROGRESS:      { label: 'Processing',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
-  METADATA_EXTRACTION:  { label: 'Processing',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
-  CASE_GENERATION:      { label: 'Generating',  icon: Loader2,       className: 'bg-amber-500/15 text-amber-700' },
-  COMPLETED:            { label: 'Completed',   icon: CheckCircle2,  className: 'bg-green-500/15 text-green-700' },
+  UPLOADED:             { label: 'En cola',     icon: Clock,         className: 'bg-muted text-muted-foreground' },
+  OCR_IN_PROGRESS:      { label: 'Procesando',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
+  METADATA_EXTRACTION:  { label: 'Procesando',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
+  CASE_GENERATION:      { label: 'Generando',   icon: Loader2,       className: 'bg-amber-500/15 text-amber-700' },
+  COMPLETED:            { label: 'Completado',  icon: CheckCircle2,  className: 'bg-green-500/15 text-green-700' },
   ERROR:                { label: 'Error',       icon: XCircle,       className: 'bg-destructive/15 text-destructive' },
 }
 
@@ -67,15 +74,26 @@ const ACTIVE_STATUSES = new Set<DocumentProcessingStatus>(['OCR_IN_PROGRESS', 'M
 export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
   const [cancelling, setCancelling] = useState(false)
   const Icon = fileIcon(doc.file_extension)
-  const isAnalyzing = doc.processing_status === 'COMPLETED' && doc.case_file?.processing_phase === 'analyzing'
+  // Treat null case_file as still-analyzing: the case hasn't been attached yet (Phase 1 race)
+  // or the join failed. Either way, don't show false all-green Complete.
+  const effectivePhase = doc.case_file?.processing_phase ?? (doc.processing_status === 'COMPLETED' ? 'analyzing' : null)
+  const isAnalyzing = doc.processing_status === 'COMPLETED' && effectivePhase === 'analyzing'
   const isActive   = ACTIVE_STATUSES.has(doc.processing_status) || isAnalyzing
   const isQueued   = doc.processing_status === 'UPLOADED'
   const isError    = doc.processing_status === 'ERROR'
   const isDone     = doc.processing_status === 'COMPLETED' && !isAnalyzing
   const canCancel  = (ACTIVE_STATUSES.has(doc.processing_status) || isQueued) && !cancelling
 
+  const phase2Total = doc.case_file?.phase2_docs_total ?? 0
+  const phase2Done  = doc.case_file?.phase2_docs_completed ?? 0
+  const allOcrDone  = phase2Total > 0 && phase2Done >= phase2Total
+  const analysisProgress = isAnalyzing && phase2Total > 0
+    ? `${phase2Done}/${phase2Total}`
+    : null
   const badge = isAnalyzing
-    ? { label: 'Analyzing', icon: Loader2, className: 'bg-blue-500/15 text-blue-700' }
+    ? (allOcrDone
+        ? { label: 'Generando…', icon: Loader2, className: 'bg-amber-500/15 text-amber-700' }
+        : { label: analysisProgress ? `Analizando ${analysisProgress}` : 'Analizando', icon: Loader2, className: 'bg-blue-500/15 text-blue-700' })
     : STATUS_BADGE[doc.processing_status]
   const BadgeIcon = badge.icon
 
@@ -145,7 +163,9 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
         <ProcessingPipelineTrack
           status={doc.processing_status}
           errorStage={doc.processing_error_stage}
-          processingPhase={doc.case_file?.processing_phase ?? null}
+          processingPhase={effectivePhase}
+          phase2DocsTotal={doc.case_file?.phase2_docs_total}
+          phase2DocsCompleted={doc.case_file?.phase2_docs_completed}
           className="w-64"
         />
       </td>
@@ -163,7 +183,7 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
           {canCancel && (
             <button
               onClick={handleCancel}
-              title="Cancel processing"
+              title="Cancelar procesamiento"
               className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
             >
               <X className="h-3.5 w-3.5" />

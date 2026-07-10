@@ -26,23 +26,23 @@ export interface NavGroup {
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      { label: 'Panel', href: '/dashboard', icon: LayoutDashboard },
     ],
   },
   {
-    label: 'Work',
+    label: 'Trabajo',
     items: [
-      { label: 'Cases',         href: '/cases',         icon: FolderOpen },
-      { label: 'Processing',    href: '/processing',    icon: Cpu },
-      { label: 'Deadlines',     href: '/deadlines',     icon: Clock },
-      { label: 'Documents',     href: '/documents',     icon: FileText },
-      { label: 'Notifications', href: '/notifications', icon: Bell },
+      { label: 'Expedientes',    href: '/cases',         icon: FolderOpen },
+      { label: 'Procesamiento',  href: '/processing',    icon: Cpu },
+      { label: 'Vencimientos',   href: '/deadlines',     icon: Clock },
+      { label: 'Documentos',     href: '/documents',     icon: FileText },
+      { label: 'Notificaciones', href: '/notifications', icon: Bell },
     ],
   },
   {
-    label: 'System',
+    label: 'Sistema',
     items: [
-      { label: 'Administration', href: '/admin', icon: Settings, requiredRole: 'admin' },
+      { label: 'Administración', href: '/admin', icon: Settings, requiredRole: 'admin' },
     ],
   },
 ]

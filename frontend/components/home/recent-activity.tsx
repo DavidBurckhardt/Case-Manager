@@ -35,21 +35,21 @@ const STATUS_CONFIG: Record<
   DocumentProcessingStatus,
   { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
 > = {
-  UPLOADED:            { label: 'Queued',      variant: 'secondary' },
-  OCR_IN_PROGRESS:     { label: 'OCR',         variant: 'default' },
-  METADATA_EXTRACTION: { label: 'Extracting',  variant: 'default' },
-  CASE_GENERATION:     { label: 'Generating',  variant: 'default' },
-  COMPLETED:           { label: 'Completed',   variant: 'default' },
-  ERROR:               { label: 'Error',       variant: 'destructive' },
+  UPLOADED:            { label: 'En cola',    variant: 'secondary' },
+  OCR_IN_PROGRESS:     { label: 'OCR',        variant: 'default' },
+  METADATA_EXTRACTION: { label: 'Extrayendo', variant: 'default' },
+  CASE_GENERATION:     { label: 'Generando',  variant: 'default' },
+  COMPLETED:           { label: 'Completado', variant: 'default' },
+  ERROR:               { label: 'Error',      variant: 'destructive' },
 }
 
 function formatRelative(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return 'Ahora mismo'
+  if (mins < 60) return `hace ${mins}m`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return `hace ${hrs}h`
   return new Date(dateStr).toLocaleDateString()
 }
 
@@ -82,7 +82,7 @@ export function RecentActivity({ initialDocs = [] }: RecentActivityProps) {
 
   if (loading) {
     return (
-      <div className="space-y-3" aria-busy="true" aria-label="Loading recent activity">
+      <div className="space-y-3" aria-busy="true" aria-label="Cargando actividad reciente">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-16 w-full rounded-lg" />
         ))}
@@ -94,7 +94,7 @@ export function RecentActivity({ initialDocs = [] }: RecentActivityProps) {
     return (
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-muted/20 py-10 text-center">
         <Inbox className="h-8 w-8 text-muted-foreground/50" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">No documents yet. Upload your first file above.</p>
+        <p className="text-sm text-muted-foreground">Sin documentos aún. Subí tu primer archivo desde arriba.</p>
       </div>
     )
   }
@@ -104,7 +104,7 @@ export function RecentActivity({ initialDocs = [] }: RecentActivityProps) {
       {/* Header row */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground">
-          Showing {docs.length} recent document{docs.length !== 1 ? 's' : ''}
+          Mostrando {docs.length} documento{docs.length !== 1 ? 's' : ''} reciente{docs.length !== 1 ? 's' : ''}
         </span>
         <Button
           variant="ghost"
@@ -112,13 +112,13 @@ export function RecentActivity({ initialDocs = [] }: RecentActivityProps) {
           className="h-7 w-7"
           onClick={() => fetchDocs()}
           disabled={refreshing}
-          aria-label="Refresh activity"
+          aria-label="Actualizar actividad"
         >
           <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
         </Button>
       </div>
 
-      <ul className="space-y-2" aria-label="Recent document activity">
+      <ul className="space-y-2" aria-label="Actividad reciente de documentos">
         {docs.map((doc) => {
           const Icon = getMimeIcon(doc.file_extension)
           const status = STATUS_CONFIG[doc.processing_status]
@@ -169,7 +169,7 @@ export function RecentActivity({ initialDocs = [] }: RecentActivityProps) {
                 <Link
                   href={`/cases/${doc.case_file.id}`}
                   className="shrink-0 rounded p-1 text-muted-foreground hover:text-primary"
-                  aria-label={`Open case ${doc.case_file.case_number}`}
+                  aria-label={`Abrir expediente ${doc.case_file.case_number}`}
                 >
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>

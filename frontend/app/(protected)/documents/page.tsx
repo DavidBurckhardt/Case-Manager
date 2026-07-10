@@ -5,8 +5,8 @@ export default function Page() {
   return (
     <EmptyState
       icon={FolderOpen}
-      title="Coming soon"
-      description="This section is under construction."
+      title="Próximamente"
+      description="Esta sección está en construcción."
     />
   )
 }

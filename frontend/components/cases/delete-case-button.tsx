@@ -34,12 +34,12 @@ export function DeleteCaseButton({ caseId, caseNumber }: DeleteCaseButtonProps) 
       const res = await fetch(`/api/case-files/${caseId}`, { method: 'DELETE' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body?.error ?? `Failed to delete (${res.status}).`)
+        throw new Error(body?.error ?? `Error al eliminar (${res.status}).`)
       }
       setOpen(false)
       startTransition(() => router.refresh())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete case.')
+      setError(err instanceof Error ? err.message : 'Error al eliminar el expediente.')
     } finally {
       setIsDeleting(false)
     }
@@ -53,7 +53,7 @@ export function DeleteCaseButton({ caseId, caseNumber }: DeleteCaseButtonProps) 
             variant="ghost"
             size="icon-sm"
             className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            aria-label={`Delete case ${caseNumber}`}
+            aria-label={`Eliminar expediente ${caseNumber}`}
           />
         }
       >
@@ -61,15 +61,15 @@ export function DeleteCaseButton({ caseId, caseNumber }: DeleteCaseButtonProps) 
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Delete case {caseNumber}?</DialogTitle>
+          <DialogTitle>¿Eliminar expediente {caseNumber}?</DialogTitle>
           <DialogDescription>
-            This removes the case from all views. Its documents stay in storage and can be
-            recovered by an administrator.
+            Esto elimina el expediente de todas las vistas. Sus documentos permanecen en almacenamiento
+            y pueden ser recuperados por un administrador.
           </DialogDescription>
         </DialogHeader>
         {error && <p className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
           <Button
             variant="destructive"
             onClick={handleDelete}
@@ -77,7 +77,7 @@ export function DeleteCaseButton({ caseId, caseNumber }: DeleteCaseButtonProps) 
             className="gap-1.5"
           >
             {(isDeleting || isPending) && <Loader2 className="animate-spin" aria-hidden="true" />}
-            Delete
+            Eliminar
           </Button>
         </DialogFooter>
       </DialogContent>

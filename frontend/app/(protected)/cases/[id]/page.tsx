@@ -8,7 +8,7 @@ import { getCaseFileById } from '@/services/case-file.service'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-export const metadata = { title: 'Case Detail — Generador de Expedientes' }
+export const metadata = { title: 'Detalle de Expediente — Generador de Expedientes' }
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -99,7 +99,7 @@ export default async function CaseDetailPage({ params }: Props) {
       {/* ── Back + header ── */}
       <div className="space-y-3">
         <Link href="/cases" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Cases
+          <ArrowLeft className="h-3.5 w-3.5" /> Volver a Expedientes
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -113,7 +113,7 @@ export default async function CaseDetailPage({ params }: Props) {
           <div className="flex items-center gap-2 flex-wrap">
             {confidence_overall && (
               <Badge variant="outline" className={cn('border-0 text-xs', CONFIDENCE_STYLES[confidence_overall])}>
-                Confidence: {confidence_overall}
+                Confianza: {confidence_overall}
               </Badge>
             )}
             <Badge variant="outline" className="border-0 bg-green-500/15 text-green-700 text-xs">
@@ -137,12 +137,12 @@ export default async function CaseDetailPage({ params }: Props) {
           }
           <div>
             <p className="text-sm font-semibold">
-              {processing_phase === 'analyzing' ? 'Deep analysis in progress' : 'Preview — limited data'}
+              {processing_phase === 'analyzing' ? 'Análisis profundo en curso' : 'Vista previa — datos limitados'}
             </p>
             <p className="mt-0.5 text-xs">
               {processing_phase === 'analyzing'
-                ? 'OCR and AI extraction are running in the background. Refresh this page in a few minutes to see the full case data.'
-                : 'This case was created from a quick text scan. Some fields may be missing or inaccurate. Re-upload the document with the OCR service running for a full analysis.'
+                ? 'El OCR y la extracción por IA están en curso en segundo plano. Actualizá esta página en unos minutos para ver los datos completos del expediente.'
+                : 'Este expediente fue creado a partir de un escaneo rápido de texto. Algunos campos pueden estar incompletos o ser imprecisos. Volvé a subir el documento con el servicio OCR activo para un análisis completo.'
               }
             </p>
           </div>
@@ -152,7 +152,7 @@ export default async function CaseDetailPage({ params }: Props) {
       {/* ── Summary ── */}
       {summary && (
         <section className="rounded-xl border bg-muted/30 px-5 py-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Summary</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Resumen</p>
           <p className="text-sm leading-relaxed">{summary}</p>
         </section>
       )}
@@ -160,111 +160,111 @@ export default async function CaseDetailPage({ params }: Props) {
       <div className="grid gap-4 lg:grid-cols-2">
 
         {/* ── Case info ── */}
-        <Section icon={Scale} title="Case Information">
+        <Section icon={Scale} title="Información del Expediente">
           <Grid>
-            <Field label="Case Number"   value={case_number} />
-            <Field label="Status"        value={current_status.label} />
-            <Field label="Filing Date"   value={fmtDate(filing_date)} />
-            <Field label="Court"         value={fmt(court)} />
-            <Field label="Jurisdiction"  value={fmt(jurisdiction)} />
-            <Field label="Department"    value={fmt(department)} />
-            <Field label="Process Type"  value={fmt(process_type)} />
-            <Field label="Legal Matter"  value={fmt(legal_matter ?? matter)} />
-            <Field label="Claim Amount"  value={fmtMoney(claim_amount)} />
-            <Field label="Registered"    value={fmtDate(created_at)} />
+            <Field label="Número de Expediente" value={case_number} />
+            <Field label="Estado"               value={current_status.label} />
+            <Field label="Fecha de Presentación" value={fmtDate(filing_date)} />
+            <Field label="Juzgado"              value={fmt(court)} />
+            <Field label="Jurisdicción"         value={fmt(jurisdiction)} />
+            <Field label="Departamento"         value={fmt(department)} />
+            <Field label="Tipo de Proceso"      value={fmt(process_type)} />
+            <Field label="Materia Legal"        value={fmt(legal_matter ?? matter)} />
+            <Field label="Monto Reclamado"      value={fmtMoney(claim_amount)} />
+            <Field label="Registrado"           value={fmtDate(created_at)} />
           </Grid>
         </Section>
 
         {/* ── Plaintiff ── */}
-        <Section icon={User} title="Plaintiff">
+        <Section icon={User} title="Demandante">
           {plaintiff ? (
             <Grid>
-              <Field label="Full Name"       value={fmt(plaintiff.full_name)} wide />
-              <Field label="DNI"             value={fmt(plaintiff.dni)} />
-              <Field label="CUIL"            value={fmt(plaintiff.cuil)} />
-              <Field label="Date of Birth"   value={fmtDate(plaintiff.birth_date)} />
-              <Field label="Nationality"     value={fmt(plaintiff.nationality)} />
-              <Field label="Marital Status"  value={fmt(plaintiff.marital_status)} />
-              <Field label="Address"         value={fmt(plaintiff.address)} wide />
-              <Field label="City"            value={fmt(plaintiff.city)} />
-              <Field label="Province"        value={fmt(plaintiff.province)} />
+              <Field label="Nombre Completo"  value={fmt(plaintiff.full_name)} wide />
+              <Field label="DNI"              value={fmt(plaintiff.dni)} />
+              <Field label="CUIL"             value={fmt(plaintiff.cuil)} />
+              <Field label="Fecha de Nacimiento" value={fmtDate(plaintiff.birth_date)} />
+              <Field label="Nacionalidad"     value={fmt(plaintiff.nationality)} />
+              <Field label="Estado Civil"     value={fmt(plaintiff.marital_status)} />
+              <Field label="Dirección"        value={fmt(plaintiff.address)} wide />
+              <Field label="Ciudad"           value={fmt(plaintiff.city)} />
+              <Field label="Provincia"        value={fmt(plaintiff.province)} />
             </Grid>
           ) : (
-            <p className="text-sm text-muted-foreground">No plaintiff data extracted.</p>
+            <p className="text-sm text-muted-foreground">No se extrajeron datos del demandante.</p>
           )}
         </Section>
 
         {/* ── Accident ── */}
-        <Section icon={AlertTriangle} title="Accident">
+        <Section icon={AlertTriangle} title="Accidente">
           {accident ? (
             <Grid>
-              <Field label="Type"          value={fmt(accident.accident_type)} />
-              <Field label="Date"          value={fmtDate(accident.accident_date)} />
-              <Field label="Time"          value={fmt(accident.accident_time)} />
-              <Field label="Location"      value={fmt(accident.location)} />
-              <Field label="City"          value={fmt(accident.city)} />
-              <Field label="Province"      value={fmt(accident.province)} />
-              <Field label="Work Activity" value={fmt(accident.work_activity)} wide />
-              <Field label="Mechanism"     value={fmt(accident.mechanism)} wide />
-              <Field label="Description"   value={fmt(accident.description)} wide />
+              <Field label="Tipo"             value={fmt(accident.accident_type)} />
+              <Field label="Fecha"            value={fmtDate(accident.accident_date)} />
+              <Field label="Hora"             value={fmt(accident.accident_time)} />
+              <Field label="Lugar"            value={fmt(accident.location)} />
+              <Field label="Ciudad"           value={fmt(accident.city)} />
+              <Field label="Provincia"        value={fmt(accident.province)} />
+              <Field label="Actividad Laboral" value={fmt(accident.work_activity)} wide />
+              <Field label="Mecanismo"        value={fmt(accident.mechanism)} wide />
+              <Field label="Descripción"      value={fmt(accident.description)} wide />
             </Grid>
           ) : (
-            <p className="text-sm text-muted-foreground">No accident data extracted.</p>
+            <p className="text-sm text-muted-foreground">No se extrajeron datos del accidente.</p>
           )}
         </Section>
 
         {/* ── Medical ── */}
-        <Section icon={Stethoscope} title="Medical">
+        <Section icon={Stethoscope} title="Médico">
           {medical ? (
             <div className="space-y-4">
               <Grid>
-                <Field label="Disability"          value={fmt(medical.permanent_disability)} />
-                <Field label="Psych. Damage"       value={medical.psychological_damage_claimed ? 'Yes' : 'No'} />
-                <Field label="Leave Start"          value={fmtDate(medical.medical_leave_start)} />
-                <Field label="Medical Discharge"    value={fmtDate(medical.medical_discharge_date)} />
+                <Field label="Incapacidad"      value={fmt(medical.permanent_disability)} />
+                <Field label="Daño Psicológico" value={medical.psychological_damage_claimed ? 'Sí' : 'No'} />
+                <Field label="Inicio de Licencia" value={fmtDate(medical.medical_leave_start)} />
+                <Field label="Alta Médica"      value={fmtDate(medical.medical_discharge_date)} />
               </Grid>
-              <div><p className="mb-1.5 text-xs text-muted-foreground">Diagnosis</p><TagList items={Array.isArray(medical.diagnosis) ? medical.diagnosis : []} /></div>
-              <div><p className="mb-1.5 text-xs text-muted-foreground">Affected Body Parts</p><TagList items={Array.isArray(medical.affected_body_parts) ? medical.affected_body_parts : []} /></div>
-              {Array.isArray(medical.surgeries) && medical.surgeries.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Surgeries</p><TagList items={medical.surgeries} /></div>}
-              {Array.isArray(medical.treatments) && medical.treatments.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Treatments</p><TagList items={medical.treatments} /></div>}
-              {Array.isArray(medical.current_limitations) && medical.current_limitations.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Current Limitations</p><TagList items={medical.current_limitations} /></div>}
+              <div><p className="mb-1.5 text-xs text-muted-foreground">Diagnóstico</p><TagList items={Array.isArray(medical.diagnosis) ? medical.diagnosis : []} /></div>
+              <div><p className="mb-1.5 text-xs text-muted-foreground">Partes Afectadas del Cuerpo</p><TagList items={Array.isArray(medical.affected_body_parts) ? medical.affected_body_parts : []} /></div>
+              {Array.isArray(medical.surgeries) && medical.surgeries.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Cirugías</p><TagList items={medical.surgeries} /></div>}
+              {Array.isArray(medical.treatments) && medical.treatments.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Tratamientos</p><TagList items={medical.treatments} /></div>}
+              {Array.isArray(medical.current_limitations) && medical.current_limitations.length > 0 && <div><p className="mb-1.5 text-xs text-muted-foreground">Limitaciones Actuales</p><TagList items={medical.current_limitations} /></div>}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No medical data extracted.</p>
+            <p className="text-sm text-muted-foreground">No se extrajeron datos médicos.</p>
           )}
         </Section>
 
         {/* ── Insurance ── */}
-        <Section icon={Shield} title="Insurance (ART)">
+        <Section icon={Shield} title="Aseguradora (ART)">
           {insurance ? (
             <Grid>
-              <Field label="Name"         value={fmt(insurance.name)} wide />
-              <Field label="CUIT"         value={fmt(insurance.cuit)} />
-              <Field label="Claim No."    value={fmt(insurance.claim_number)} />
-              <Field label="Policy No."   value={fmt(insurance.policy_number)} />
+              <Field label="Nombre"        value={fmt(insurance.name)} wide />
+              <Field label="CUIT"          value={fmt(insurance.cuit)} />
+              <Field label="Nro. Siniestro" value={fmt(insurance.claim_number)} />
+              <Field label="Nro. Póliza"   value={fmt(insurance.policy_number)} />
             </Grid>
           ) : (
-            <p className="text-sm text-muted-foreground">No insurance data extracted.</p>
+            <p className="text-sm text-muted-foreground">No se extrajeron datos de la aseguradora.</p>
           )}
         </Section>
 
         {/* ── Employer ── */}
-        <Section icon={Building2} title="Employer">
+        <Section icon={Building2} title="Empleador">
           {employer ? (
             <Grid>
-              <Field label="Company"  value={fmt(employer.company_name)} wide />
-              <Field label="CUIT"     value={fmt(employer.cuit)} />
-              <Field label="Activity" value={fmt(employer.activity)} wide />
+              <Field label="Empresa"   value={fmt(employer.company_name)} wide />
+              <Field label="CUIT"      value={fmt(employer.cuit)} />
+              <Field label="Actividad" value={fmt(employer.activity)} wide />
             </Grid>
           ) : (
-            <p className="text-sm text-muted-foreground">No employer data extracted.</p>
+            <p className="text-sm text-muted-foreground">No se extrajeron datos del empleador.</p>
           )}
         </Section>
       </div>
 
       {/* ── Defendants ── */}
       {defendants.length > 0 && (
-        <Section icon={Scale} title="Defendants">
+        <Section icon={Scale} title="Demandados">
           <div className="divide-y">
             {defendants.map((d) => (
               <div key={d.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
@@ -281,15 +281,15 @@ export default async function CaseDetailPage({ params }: Props) {
 
       {/* ── Lawyers ── */}
       {lawyers.length > 0 && (
-        <Section icon={Scale} title="Lawyers">
+        <Section icon={Scale} title="Abogados">
           <div className="divide-y">
             {lawyers.map((l) => (
               <div key={l.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
                 <div>
                   <p className="text-sm font-medium">{l.name}</p>
-                  {l.notes && <p className="text-xs text-muted-foreground">Reg: {l.notes}</p>}
+                  {l.notes && <p className="text-xs text-muted-foreground">Mat: {l.notes}</p>}
                 </div>
-                {l.party_type && <Badge variant="outline" className="border-0 bg-muted text-xs">Representing: {l.party_type}</Badge>}
+                {l.party_type && <Badge variant="outline" className="border-0 bg-muted text-xs">Representa a: {l.party_type}</Badge>}
               </div>
             ))}
           </div>
@@ -298,20 +298,20 @@ export default async function CaseDetailPage({ params }: Props) {
 
       {/* ── Administrative proceedings ── */}
       {admin_proceedings && (
-        <Section icon={FileText} title="Administrative Proceedings">
+        <Section icon={FileText} title="Actuaciones Administrativas">
           <Grid>
-            <Field label="Commission Case"  value={fmt(admin_proceedings.medical_commission_case)} />
-            <Field label="Commission"       value={fmt(admin_proceedings.medical_commission)} />
-            <Field label="Resolution Date"  value={fmtDate(admin_proceedings.resolution_date)} />
-            <Field label="Admin Status"     value={fmt(admin_proceedings.administrative_status)} />
-            <Field label="Medical Opinion"  value={fmt(admin_proceedings.medical_opinion)} wide />
+            <Field label="Expediente Comisión"  value={fmt(admin_proceedings.medical_commission_case)} />
+            <Field label="Comisión Médica"       value={fmt(admin_proceedings.medical_commission)} />
+            <Field label="Fecha de Resolución"  value={fmtDate(admin_proceedings.resolution_date)} />
+            <Field label="Estado Administrativo" value={fmt(admin_proceedings.administrative_status)} />
+            <Field label="Dictamen Médico"       value={fmt(admin_proceedings.medical_opinion)} wide />
           </Grid>
         </Section>
       )}
 
       {/* ── Important dates ── */}
       {safeDates.length > 0 && (
-        <Section icon={Calendar} title="Timeline">
+        <Section icon={Calendar} title="Cronología">
           <ol className="space-y-2">
             {safeDates.map((entry, i) => (
               <li key={i} className="flex items-start gap-3">
@@ -330,14 +330,14 @@ export default async function CaseDetailPage({ params }: Props) {
 
       {/* ── Documents detected ── */}
       {safeDocs.length > 0 && (
-        <Section icon={Files} title="Documents Detected">
+        <Section icon={Files} title="Documentos Detectados">
           <TagList items={safeDocs} />
         </Section>
       )}
 
       {/* ── Missing fields ── */}
       {safeMissing.length > 0 && (
-        <Section icon={AlertCircle} title="Missing Fields">
+        <Section icon={AlertCircle} title="Campos Faltantes">
           <div className="flex flex-wrap gap-1.5">
             {safeMissing.map((f, i) => (
               <span key={i} className="inline-block rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">

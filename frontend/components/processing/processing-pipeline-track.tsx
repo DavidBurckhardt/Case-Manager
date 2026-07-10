@@ -10,15 +10,17 @@ interface ProcessingPipelineTrackProps {
   status: DocumentProcessingStatus
   errorStage?: string | null
   processingPhase?: ProcessingPhase | null
+  phase2DocsTotal?: number
+  phase2DocsCompleted?: number
   className?: string
 }
 
-export function ProcessingPipelineTrack({ status, errorStage, processingPhase, className }: ProcessingPipelineTrackProps) {
+export function ProcessingPipelineTrack({ status, errorStage, processingPhase, phase2DocsTotal, phase2DocsCompleted, className }: ProcessingPipelineTrackProps) {
   const currentIdx = stageIndex(status, errorStage, processingPhase)
   const isFailed = status === 'ERROR'
 
   return (
-    <ol aria-label="Processing pipeline" className={cn('flex items-start gap-0', className)}>
+    <ol aria-label="Pipeline de procesamiento" className={cn('flex items-start gap-0', className)}>
       {PIPELINE_STAGES.map((stage, i) => {
         const isFullyDone = status === 'COMPLETED' && processingPhase !== 'analyzing'
         const isDone    = isFailed ? i < currentIdx : (isFullyDone ? i <= currentIdx : i < currentIdx)
@@ -68,7 +70,9 @@ export function ProcessingPipelineTrack({ status, errorStage, processingPhase, c
                 isPending && 'text-muted-foreground/40'
               )}
             >
-              {stage.label}
+              {isActive && stage.key === 'analyzing' && phase2DocsTotal
+                ? `${stage.label} ${phase2DocsCompleted ?? 0}/${phase2DocsTotal}`
+                : stage.label}
             </span>
           </li>
         )

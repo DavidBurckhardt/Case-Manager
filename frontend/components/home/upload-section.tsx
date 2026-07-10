@@ -76,7 +76,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
     <div className="space-y-5">
       {/* Case selector */}
       <div className="space-y-1.5">
-        <label htmlFor="case-search" className="text-sm font-medium">Associate with a case file</label>
+        <label htmlFor="case-search" className="text-sm font-medium">Asociar con un expediente</label>
 
         {selectedCase ? (
           <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
@@ -84,7 +84,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
               <span className="text-sm font-medium">{selectedCase.case_number}</span>
               <span className="ml-2 truncate text-xs text-muted-foreground">{selectedCase.caption}</span>
             </div>
-            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={clearCase} aria-label="Remove case selection">
+            <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={clearCase} aria-label="Quitar selección de expediente">
               <X className="h-3.5 w-3.5" />
             </Button>
           </div>
@@ -99,7 +99,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
                 aria-expanded={open}
                 aria-autocomplete="list"
                 aria-controls="case-listbox"
-                placeholder="Search by case number or caption…"
+                placeholder="Buscar por número o carátula…"
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pl-9 pr-9 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 value={query}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleQueryChange(e.target.value)}
@@ -110,7 +110,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
                   {searching
                     ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-primary" aria-hidden="true" />
                     : (
-                      <button onClick={() => { setQuery(''); setResults([]); setOpen(false) }} aria-label="Clear search">
+                      <button onClick={() => { setQuery(''); setResults([]); setOpen(false) }} aria-label="Limpiar búsqueda">
                         <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                       </button>
                     )
@@ -123,7 +123,7 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
               <ul
                 id="case-listbox"
                 role="listbox"
-                aria-label="Case file results"
+                aria-label="Resultados de expediente"
                 className="absolute z-50 mt-1 w-full rounded-lg border bg-popover py-1 shadow-md"
               >
                 {results.map((c) => (
@@ -147,9 +147,9 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
 
             {open && query.length > 0 && !searching && results.length === 0 && (
               <div className="absolute z-50 mt-1 w-full rounded-lg border bg-popover p-3 shadow-md">
-                <p className="text-sm text-muted-foreground">No cases found for "{query}"</p>
+                <p className="text-sm text-muted-foreground">No se encontraron expedientes para &ldquo;{query}&rdquo;</p>
                 <a href="/cases/new" className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">
-                  <Plus className="h-3.5 w-3.5" /> Create new case
+                  <Plus className="h-3.5 w-3.5" /> Crear nuevo expediente
                 </a>
               </div>
             )}
@@ -158,8 +158,8 @@ export function UploadSection({ onUploadComplete }: UploadSectionProps) {
 
         {!selectedCase && (
           <p className="text-xs text-muted-foreground">
-            Select a case first, or{' '}
-            <a href="/cases/new" className="underline hover:text-primary">create a new one</a>
+            Seleccioná un expediente primero, o{' '}
+            <a href="/cases/new" className="underline hover:text-primary">creá uno nuevo</a>
             .
           </p>
         )}

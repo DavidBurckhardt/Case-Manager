@@ -17,7 +17,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
 
       <div className="space-y-1">
         <label htmlFor="email" className="block text-sm font-medium text-foreground">
-          Email
+          Correo electrónico
         </label>
         <input
           id="email"
@@ -27,13 +27,13 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           required
           disabled={pending}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-          placeholder="you@example.com"
+          placeholder="vos@ejemplo.com"
         />
       </div>
 
       <div className="space-y-1">
         <label htmlFor="password" className="block text-sm font-medium text-foreground">
-          Password
+          Contraseña
         </label>
         <input
           id="password"
@@ -54,7 +54,7 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
       )}
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? 'Signing in…' : 'Sign in'}
+        {pending ? 'Iniciando sesión…' : 'Iniciar sesión'}
       </Button>
     </form>
   )

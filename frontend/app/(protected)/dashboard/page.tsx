@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { DocumentUploader } from '@/components/documents'
 import { RecentActivity } from '@/components/home/recent-activity'
 
-export const metadata = { title: 'Home — Generador de Expedientes' }
+export const metadata = { title: 'Inicio — Generador de Expedientes' }
 
 async function getSummaryStats() {
   const supabase = await createClient()
@@ -22,10 +22,10 @@ async function getSummaryStats() {
 }
 
 const STAT_CARDS = [
-  { label: 'Active Cases',      href: '/cases',         icon: FolderOpen, key: 'cases' as const },
-  { label: 'Pending Deadlines', href: '/deadlines',     icon: Clock,      key: null },
-  { label: 'Documents',         href: '/documents',     icon: FileText,   key: 'docs' as const },
-  { label: 'Notifications',     href: '/notifications', icon: Bell,       key: null },
+  { label: 'Expedientes Activos',    href: '/cases',         icon: FolderOpen, key: 'cases' as const },
+  { label: 'Vencimientos Pendientes', href: '/deadlines',     icon: Clock,      key: null },
+  { label: 'Documentos',             href: '/documents',     icon: FileText,   key: 'docs' as const },
+  { label: 'Notificaciones',         href: '/notifications', icon: Bell,       key: null },
 ]
 
 export default async function DashboardPage() {
@@ -35,16 +35,16 @@ export default async function DashboardPage() {
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0]
     ?? user?.email?.split('@')[0]
-    ?? 'there'
+    ?? 'ahí'
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 pb-16">
 
       {/* Greeting */}
       <div>
-        <h2 className="text-xl font-semibold">Good day, {firstName}</h2>
+        <h2 className="text-xl font-semibold">Buen día, {firstName}</h2>
         <p className="text-sm text-muted-foreground">
-          Drag and drop documents to start processing. Cases are created automatically.
+          Arrastrá y soltá documentos para comenzar el procesamiento. Los expedientes se crean automáticamente.
         </p>
       </div>
 
@@ -69,9 +69,9 @@ export default async function DashboardPage() {
       <section aria-labelledby="intake-heading">
         <div className="mb-4 flex items-center gap-2">
           <Upload className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          <h3 id="intake-heading" className="font-semibold">Document Intake</h3>
+          <h3 id="intake-heading" className="font-semibold">Ingreso de Documentos</h3>
           <span className="text-xs text-muted-foreground">
-            — OCR and case generation happen automatically
+            — El OCR y la generación de expedientes ocurren automáticamente
           </span>
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
@@ -84,10 +84,10 @@ export default async function DashboardPage() {
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <h3 id="activity-heading" className="font-semibold">Recent Documents</h3>
+            <h3 id="activity-heading" className="font-semibold">Documentos Recientes</h3>
           </div>
           <Link href="/processing" className="text-xs text-muted-foreground hover:text-primary hover:underline">
-            View processing →
+            Ver procesamiento →
           </Link>
         </div>
         <Suspense

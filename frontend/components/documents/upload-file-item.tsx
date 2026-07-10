@@ -39,10 +39,10 @@ function getExtension(filename: string): string {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<UploadFileState['status'], string> = {
-  pending: 'Ready',
-  uploading: 'Uploading',
-  success: 'Uploaded',
-  error: 'Failed',
+  pending: 'Listo',
+  uploading: 'Subiendo',
+  success: 'Subido',
+  error: 'Fallido',
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

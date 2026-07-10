@@ -7,23 +7,23 @@ type ErrorVariant = 'generic' | 'network' | 'unauthorized' | 'not-found'
 const CONFIG: Record<ErrorVariant, { icon: typeof AlertCircle; title: string; description: string }> = {
   generic: {
     icon: AlertCircle,
-    title: 'Something went wrong',
-    description: 'An unexpected error occurred. Please try again.',
+    title: 'Algo salió mal',
+    description: 'Ocurrió un error inesperado. Por favor, intentá de nuevo.',
   },
   network: {
     icon: WifiOff,
-    title: 'Connection problem',
-    description: 'Unable to reach the server. Check your connection and retry.',
+    title: 'Problema de conexión',
+    description: 'No se pudo conectar al servidor. Verificá tu conexión y reintentá.',
   },
   unauthorized: {
     icon: ShieldOff,
-    title: 'Access denied',
-    description: "You don't have permission to view this resource.",
+    title: 'Acceso denegado',
+    description: 'No tenés permiso para ver este recurso.',
   },
   'not-found': {
     icon: AlertCircle,
-    title: 'Not found',
-    description: 'The requested resource could not be found.',
+    title: 'No encontrado',
+    description: 'No se pudo encontrar el recurso solicitado.',
   },
 }
 
@@ -62,7 +62,7 @@ export function ErrorState({
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry} className="gap-2">
           <RefreshCw className="h-3.5 w-3.5" />
-          Try again
+          Intentar de nuevo
         </Button>
       )}
     </div>

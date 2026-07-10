@@ -5,7 +5,7 @@ import { ApiError } from '@/services/case-file.service'
 import { ProcessingDashboard } from '@/components/processing'
 import type { ProcessingDocument } from '@/components/processing'
 
-export const metadata = { title: 'Processing — Generador de Expedientes' }
+export const metadata = { title: 'Procesamiento — Generador de Expedientes' }
 
 // Revalidate every 5 s so the server-rendered initial state is fresh
 export const revalidate = 5
@@ -31,7 +31,7 @@ async function getInitialDocs(): Promise<ProcessingDocument[]> {
         processing_error_stage,
         processing_stage_updated_at,
         uploaded_at,
-        case_file:case_files ( id, case_number, caption )
+        case_file:case_files ( id, case_number, caption, processing_phase, phase2_docs_total, phase2_docs_completed )
       `)
       .is('deleted_at', null)
       .order('uploaded_at', { ascending: false })
@@ -47,8 +47,8 @@ async function getInitialDocs(): Promise<ProcessingDocument[]> {
 export default async function ProcessingPage() {
   const initialDocs = await getInitialDocs()
 
-  const active    = initialDocs.filter((d) => !['COMPLETED', 'ERROR'].includes(d.processing_status))
-  const completed = initialDocs.filter((d) => d.processing_status === 'COMPLETED')
+  const active    = initialDocs.filter((d) => !['COMPLETED', 'ERROR'].includes(d.processing_status) || d.case_file?.processing_phase === 'analyzing')
+  const completed = initialDocs.filter((d) => d.processing_status === 'COMPLETED' && d.case_file?.processing_phase === 'complete')
   const errors    = initialDocs.filter((d) => d.processing_status === 'ERROR')
 
   return (
@@ -60,18 +60,18 @@ export default async function ProcessingPage() {
           <Cpu className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Document Processing</h2>
+          <h2 className="text-xl font-semibold">Procesamiento de Documentos</h2>
           <p className="text-sm text-muted-foreground">
-            Real-time visibility into the OCR, metadata extraction, and case generation pipeline.
+            Seguimiento en tiempo real del pipeline de OCR, extracción de metadatos y generación de expedientes.
           </p>
         </div>
 
         {/* Pipeline legend */}
         <div className="ml-auto hidden items-center gap-4 text-xs text-muted-foreground lg:flex">
           {[
-            { color: 'bg-muted-foreground/30', label: 'Pending' },
-            { color: 'bg-primary',             label: 'Active' },
-            { color: 'bg-green-500',            label: 'Done' },
+            { color: 'bg-muted-foreground/30', label: 'Pendiente' },
+            { color: 'bg-primary',             label: 'Activo' },
+            { color: 'bg-green-500',            label: 'Listo' },
             { color: 'bg-destructive',          label: 'Error' },
           ].map(({ color, label }) => (
             <span key={label} className="flex items-center gap-1.5">
@@ -81,25 +81,6 @@ export default async function ProcessingPage() {
           ))}
         </div>
       </div>
-
-      {/* ── Quick stats (server-rendered) ── */}
-      {initialDocs.length > 0 && (
-        <div className="rounded-xl border bg-card px-6 py-4">
-          <p className="text-sm text-muted-foreground">
-            Monitoring{' '}
-            <strong className="text-foreground">{initialDocs.length}</strong> document{initialDocs.length !== 1 ? 's' : ''}
-            {active.length > 0 && (
-              <> — <strong className="text-primary">{active.length} active</strong></>
-            )}
-            {errors.length > 0 && (
-              <>, <strong className="text-destructive">{errors.length} error{errors.length !== 1 ? 's' : ''}</strong></>
-            )}
-            {completed.length > 0 && (
-              <>, <span className="text-green-700">{completed.length} completed</span></>
-            )}
-          </p>
-        </div>
-      )}
 
       {/* ── Dashboard (client: handles polling + tabs) ── */}
       <Suspense

@@ -10,10 +10,10 @@ export interface PipelineStage {
 //   Phase 1 (pdf-parse + regex) → Preview
 //   Phase 2 (OCR + LLM, background) → Analyzing → Complete
 export const PIPELINE_STAGES: PipelineStage[] = [
-  { key: 'upload',    label: 'Upload' },
-  { key: 'preview',   label: 'Preview' },
-  { key: 'analyzing', label: 'Analyzing' },
-  { key: 'complete',  label: 'Complete' },
+  { key: 'upload',    label: 'Carga' },
+  { key: 'preview',   label: 'Vista Previa' },
+  { key: 'analyzing', label: 'Analizando' },
+  { key: 'complete',  label: 'Completo' },
 ]
 
 /**

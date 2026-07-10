@@ -10,11 +10,11 @@ export interface PipelineStage {
 }
 
 export const PIPELINE_STAGES: PipelineStage[] = [
-  { key: 'UPLOADED',            label: 'Uploaded' },
+  { key: 'UPLOADED',            label: 'Subido' },
   { key: 'OCR_IN_PROGRESS',     label: 'OCR' },
-  { key: 'METADATA_EXTRACTION', label: 'Metadata' },
-  { key: 'CASE_GENERATION',     label: 'Case' },
-  { key: 'COMPLETED',           label: 'Completed' },
+  { key: 'METADATA_EXTRACTION', label: 'Metadatos' },
+  { key: 'CASE_GENERATION',     label: 'Expediente' },
+  { key: 'COMPLETED',           label: 'Completado' },
 ]
 
 function getStageIndex(status: DocumentProcessingStatus): number {
@@ -33,7 +33,7 @@ export function ProcessingPipeline({ status, className }: ProcessingPipelineProp
 
   return (
     <ol
-      aria-label="Processing stages"
+      aria-label="Etapas de procesamiento"
       className={cn('flex items-start gap-0', className)}
     >
       {PIPELINE_STAGES.map((stage, i) => {

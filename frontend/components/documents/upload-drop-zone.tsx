@@ -99,7 +99,7 @@ export function UploadDropZone({ onFiles, disabled = false, compact = false }: U
       ref={zoneRef}
       role="button"
       tabIndex={disabled ? -1 : 0}
-      aria-label="Document upload area. Press Enter or Space to open file picker, or drag and drop files here."
+      aria-label="Área de carga de documentos. Presioná Intro o Espacio para abrir el selector de archivos, o arrastrá y soltá archivos aquí."
       aria-disabled={disabled}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -140,23 +140,23 @@ export function UploadDropZone({ onFiles, disabled = false, compact = false }: U
 
       {isDragging ? (
         <div className="space-y-1">
-          <p className="text-base font-semibold text-primary">Drop files here</p>
-          <p className="text-sm text-primary/70">Release to start upload</p>
+          <p className="text-base font-semibold text-primary">Soltá los archivos aquí</p>
+          <p className="text-sm text-primary/70">Soltá para iniciar la carga</p>
         </div>
       ) : (
         <div className="space-y-2">
           <p className={cn('font-semibold', compact ? 'text-sm' : 'text-base')}>
-            Drag &amp; drop files here
+            Arrastrá y soltá archivos aquí
           </p>
           <p className="text-sm text-muted-foreground">
-            or{' '}
+            o{' '}
             <span className="font-medium text-primary underline-offset-2 group-hover:underline">
-              browse files
+              explorá archivos
             </span>
           </p>
           {!compact && (
             <p className="text-xs text-muted-foreground/70">
-              {ALLOWED_EXTENSIONS.join(' · ')} &nbsp;·&nbsp; Max {maxMb} MB per file
+              {ALLOWED_EXTENSIONS.join(' · ')} &nbsp;·&nbsp; Máximo {maxMb} MB por archivo
             </p>
           )}
         </div>
@@ -172,7 +172,7 @@ export function UploadDropZone({ onFiles, disabled = false, compact = false }: U
           aria-hidden="true"
         >
           <FolderOpen className="h-3.5 w-3.5" />
-          Select files
+          Seleccionar archivos
         </Button>
       )}
 

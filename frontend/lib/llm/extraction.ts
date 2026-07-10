@@ -165,7 +165,9 @@ null
 
 YYYY-MM-DD
 
-5. Normalize CUIT/CUIL removing separators.
+5. All free-text output fields (summary, event descriptions, diagnoses, affected body parts, document types, legal arguments, treatments, limitations, and any other descriptive string) MUST be written in Spanish. The input documents are in Spanish — preserve the language.
+
+6. Normalize CUIT/CUIL removing separators.
 
 Example:
 

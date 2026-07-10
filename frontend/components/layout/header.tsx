@@ -32,7 +32,7 @@ export function Header({ title, userEmail }: HeaderProps) {
     <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
       {/* Page title */}
       <h1 className="text-sm font-semibold text-foreground">
-        {title ?? 'Dashboard'}
+        {title ?? 'Panel'}
       </h1>
 
       {/* Right side actions */}
@@ -42,11 +42,11 @@ export function Header({ title, userEmail }: HeaderProps) {
           variant="outline"
           size="sm"
           className="hidden gap-2 text-muted-foreground sm:flex"
-          aria-label="Search (coming soon)"
+          aria-label="Buscar (próximamente)"
           disabled
         >
           <Search className="h-3.5 w-3.5" />
-          <span className="text-xs">Search…</span>
+          <span className="text-xs">Buscar…</span>
           <kbd className="hidden rounded border bg-muted px-1 py-0.5 text-[10px] font-mono lg:inline">
             ⌘K
           </kbd>
@@ -55,7 +55,7 @@ export function Header({ title, userEmail }: HeaderProps) {
         <ThemeToggle />
 
         {/* Notifications bell */}
-        <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label="Notifications">
+        <Button variant="ghost" size="icon" className="relative h-8 w-8" aria-label="Notificaciones">
           <Bell className="h-4 w-4" />
         </Button>
 
@@ -63,7 +63,7 @@ export function Header({ title, userEmail }: HeaderProps) {
         <DropdownMenu>
           <DropdownMenuTrigger
             className="flex h-8 w-8 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="User menu"
+            aria-label="Menú de usuario"
           >
             <Avatar className="h-7 w-7">
               <AvatarFallback className="bg-primary text-[11px] text-primary-foreground">
@@ -74,22 +74,22 @@ export function Header({ title, userEmail }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium">Signed in as</span>
+                <span className="text-xs font-medium">Conectado como</span>
                 <span className="max-w-[180px] truncate text-xs text-muted-foreground">
                   {userEmail}
                 </span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Profile</DropdownMenuItem>
-            <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+            <DropdownMenuItem disabled>Perfil</DropdownMenuItem>
+            <DropdownMenuItem disabled>Configuración</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               disabled={pending}
               onSelect={() => startTransition(() => signOut())}
             >
-              {pending ? 'Signing out…' : 'Sign out'}
+              {pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

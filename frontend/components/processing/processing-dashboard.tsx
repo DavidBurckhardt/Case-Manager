@@ -16,8 +16,16 @@ interface ProcessingDashboardProps {
 const FAST_POLL_MS = 3_000
 const SLOW_POLL_MS = 15_000
 
+// When case_file is null (join race or failure), treat COMPLETED as still analyzing.
+// Mirrors the effectivePhase logic in ProcessingRow.
+function docIsFullyDone(doc: ProcessingDocument): boolean {
+  if (doc.processing_status !== 'COMPLETED') return false
+  const phase = doc.case_file?.processing_phase ?? 'analyzing'
+  return phase !== 'analyzing'
+}
+
 function allTerminal(docs: ProcessingDocument[]) {
-  return docs.every((d) => isTerminalStatus(d.processing_status))
+  return docs.every(docIsFullyDone)
 }
 
 export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardProps) {
@@ -63,15 +71,15 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
     if (initialDocs.length === 0) fetchDocs(false)
   }, [fetchDocs, initialDocs.length])
 
-  const active    = docs.filter((d) => !isTerminalStatus(d.processing_status) || d.case_file?.processing_phase === 'analyzing')
-  const completed = docs.filter((d) => d.processing_status === 'COMPLETED' && d.case_file?.processing_phase !== 'analyzing')
+  const active    = docs.filter((d) => !docIsFullyDone(d) && d.processing_status !== 'ERROR')
+  const completed = docs.filter((d) => docIsFullyDone(d))
   const errors    = docs.filter((d) => d.processing_status === 'ERROR')
 
   const tabs: { key: FilterTab; label: string; count: number }[] = [
-    { key: 'active',    label: 'Active',    count: active.length },
-    { key: 'completed', label: 'Completed', count: completed.length },
-    { key: 'errors',    label: 'Errors',    count: errors.length },
-    { key: 'all',       label: 'All',       count: docs.length },
+    { key: 'active',    label: 'Activos',     count: active.length },
+    { key: 'completed', label: 'Completados', count: completed.length },
+    { key: 'errors',    label: 'Errores',     count: errors.length },
+    { key: 'all',       label: 'Todos',       count: docs.length },
   ]
 
   const visible = filter === 'active'    ? active
@@ -95,7 +103,7 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
     <div className="space-y-6">
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Filter documents" className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+        <div role="tablist" aria-label="Filtrar documentos" className="flex gap-1 rounded-lg border bg-muted/40 p-1">
           {tabs.map(({ key, label, count }) => (
             <button
               key={key}
@@ -131,11 +139,11 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
               </span>
-              Live
+              En vivo
             </span>
           )}
           <span className="text-xs text-muted-foreground">
-            Updated {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            Actualizado {lastRefresh.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
           </span>
           <Button
             variant="ghost"
@@ -143,7 +151,7 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
             className="h-7 w-7"
             onClick={() => fetchDocs(false)}
             disabled={refreshing}
-            aria-label="Refresh now"
+            aria-label="Actualizar ahora"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
           </Button>
@@ -156,21 +164,21 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
             <Activity className="h-4 w-4 text-primary" aria-hidden="true" />
             <div>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xs text-muted-foreground">Activos</p>
               <p className="text-lg font-bold leading-none">{active.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
             <CheckCircle2 className="h-4 w-4 text-green-600" aria-hidden="true" />
             <div>
-              <p className="text-xs text-muted-foreground">Completed</p>
+              <p className="text-xs text-muted-foreground">Completados</p>
               <p className="text-lg font-bold leading-none">{completed.length}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
             <AlertCircle className="h-4 w-4 text-destructive" aria-hidden="true" />
             <div>
-              <p className="text-xs text-muted-foreground">Errors</p>
+              <p className="text-xs text-muted-foreground">Errores</p>
               <p className="text-lg font-bold leading-none">{errors.length}</p>
             </div>
           </div>
@@ -183,15 +191,15 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
           <Inbox className="h-8 w-8 text-muted-foreground/40" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium">
-              {filter === 'active'     ? 'No documents currently processing'
-               : filter === 'errors'   ? 'No processing errors'
-               : filter === 'completed'? 'No completed documents yet'
-               : 'No documents yet'}
+              {filter === 'active'      ? 'Sin documentos en procesamiento'
+               : filter === 'errors'   ? 'Sin errores de procesamiento'
+               : filter === 'completed'? 'Sin documentos completados aún'
+               : 'Sin documentos'}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {filter === 'active'
-                ? 'Upload documents from the home screen to begin.'
-                : 'Switch to another tab to see documents.'}
+                ? 'Subí documentos desde la pantalla principal para comenzar.'
+                : 'Cambiá de pestaña para ver los documentos.'}
             </p>
           </div>
         </div>
@@ -207,11 +215,11 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
             </colgroup>
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-3 font-medium">Document</th>
-                <th className="px-4 py-3 font-medium">Size</th>
-                <th className="px-4 py-3 font-medium">Uploaded</th>
-                <th className="px-4 py-3 font-medium">Progress</th>
-                <th className="px-4 py-3 font-medium text-right">Status</th>
+                <th className="px-4 py-3 font-medium">Documento</th>
+                <th className="px-4 py-3 font-medium">Tamaño</th>
+                <th className="px-4 py-3 font-medium">Subido</th>
+                <th className="px-4 py-3 font-medium">Progreso</th>
+                <th className="px-4 py-3 font-medium text-right">Estado</th>
               </tr>
             </thead>
             <tbody>

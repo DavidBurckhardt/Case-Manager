@@ -41,6 +41,8 @@ export interface CaseFileRow {
   important_dates: Array<{ date: string | null; event: string }>
   legal_claim: Record<string, unknown>
   processing_phase: ProcessingPhase
+  phase2_docs_total: number
+  phase2_docs_completed: number
   current_status_id: string
   responsible_attorney_id: string | null
   created_by: string

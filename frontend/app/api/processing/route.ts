@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         processing_error_stage,
         processing_stage_updated_at,
         uploaded_at,
-        case_file:case_files ( id, case_number, caption, processing_phase )
+        case_file:case_files ( id, case_number, caption, processing_phase, phase2_docs_total, phase2_docs_completed )
       `)
       .is('deleted_at', null)
       .order('uploaded_at', { ascending: false })

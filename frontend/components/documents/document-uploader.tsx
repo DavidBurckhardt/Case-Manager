@@ -49,7 +49,7 @@ export function DocumentUploader({
 
       {/* Upload queue */}
       {hasFiles && (
-        <section aria-label="Upload queue">
+        <section aria-label="Cola de carga">
           {/* Summary row */}
           {allDone && (
             <div
@@ -64,13 +64,13 @@ export function DocumentUploader({
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>
-                {successCount} file{successCount !== 1 ? 's' : ''} uploaded
-                {errorCount > 0 && `, ${errorCount} failed`}.
+                {successCount} archivo{successCount !== 1 ? 's' : ''} subido{successCount !== 1 ? 's' : ''}
+                {errorCount > 0 && `, ${errorCount} fallido${errorCount !== 1 ? 's' : ''}`}.
               </span>
             </div>
           )}
 
-          <ul className="space-y-2" aria-label="Files in upload queue">
+          <ul className="space-y-2" aria-label="Archivos en cola de carga">
             {fileStates.map((state, i) => (
               <UploadFileItem
                 key={`${state.file.name}-${state.file.size}-${i}`}
@@ -93,13 +93,13 @@ export function DocumentUploader({
             onClick={reset}
             disabled={isUploading}
           >
-            Clear all
+            Limpiar todo
           </Button>
 
           <div className="flex items-center gap-2">
             {allDone && errorCount > 0 && (
               <span className="text-xs text-muted-foreground">
-                {errorCount} file{errorCount !== 1 ? 's' : ''} failed — retry or remove them.
+                {errorCount} archivo{errorCount !== 1 ? 's' : ''} fallido{errorCount !== 1 ? 's' : ''} — reintentá o eliminalos.
               </span>
             )}
             <Button
@@ -112,12 +112,12 @@ export function DocumentUploader({
               {isUploading ? (
                 <>
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
-                  Uploading…
+                  Subiendo…
                 </>
               ) : (
                 <>
                   <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-                  Upload {pendingCount > 0 ? `${pendingCount} file${pendingCount !== 1 ? 's' : ''}` : ''}
+                  Subir {pendingCount > 0 ? `${pendingCount} archivo${pendingCount !== 1 ? 's' : ''}` : ''}
                 </>
               )}
             </Button>

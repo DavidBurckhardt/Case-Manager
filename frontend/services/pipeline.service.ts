@@ -2,29 +2,20 @@
  * Document processing pipeline — two-phase strategy.
  *
  * Phase 1 (fast, ~seconds):
- *   UPLOADED → pdf-parse text → regex extract → create case (processing_phase='preview'|'analyzing')
- *   → mark documents COMPLETED so the upload UI shows success immediately.
+ *   UPLOADED → create placeholder case (processing_phase='analyzing')
+ *   → mark documents COMPLETED so the upload UI shows progress immediately.
  *
  * Phase 2 (background, ~minutes):
  *   OCR (EasyOCR) → LLM extraction → UPDATE existing case → processing_phase='complete'
  *   This runs fire-and-forget after Phase 1 resolves.
- *   If OCR service is unavailable, Phase 2 is skipped and processing_phase stays 'preview'.
+ *   If OCR service is unavailable, processing_phase stays 'preview'.
  *
  * DB status on case_file_documents tracks upload-pipeline progress (shown in /processing view).
  * processing_phase on case_files tracks enrichment depth (shown as banner on case detail).
  */
-// pdf-parse v2 depends on @napi-rs/canvas which references DOMMatrix at module
-// evaluation time — not available in Node.js without a DOM. Stub it before require.
-if (typeof (globalThis as Record<string, unknown>).DOMMatrix === 'undefined') {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ;(globalThis as any).DOMMatrix = class DOMMatrix {}
-}
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string; numpages: number }>
 import { Agent } from 'undici'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { extractCaseMetadata } from '@/lib/llm/extraction'
-import { regexExtract } from '@/lib/extraction/regex-extractor'
 import type { DocumentProcessingStatus } from '@/types/document'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,14 +65,6 @@ async function downloadFile(db: AnyDB, storageKey: string): Promise<Blob> {
   return data as Blob
 }
 
-// ── Phase 1: pdf-parse + regex ────────────────────────────────────────────────
-
-async function extractTextWithPdfParse(blob: Blob): Promise<string> {
-  const buffer = Buffer.from(await blob.arrayBuffer())
-  const result = await pdfParse(buffer)
-  return result.text ?? ''
-}
-
 // ── Phase 2: OCR ──────────────────────────────────────────────────────────────
 
 async function runOCR(blob: Blob, filename: string): Promise<string> {
@@ -123,16 +106,9 @@ async function resolveInitialState(db: AnyDB): Promise<string> {
   return data.id
 }
 
-interface CasePreviewData {
-  case_number: string
-  title: string | null
-  filing_date: string | null
-  claim_amount: number | null
-}
-
-async function createPreviewCase(
+async function createPlaceholderCase(
   db: AnyDB,
-  preview: CasePreviewData,
+  caseNumber: string,
   phase: 'preview' | 'analyzing',
   uploadedBy: string,
 ): Promise<string> {
@@ -141,11 +117,11 @@ async function createPreviewCase(
   const { data, error } = await db
     .from('case_files')
     .insert({
-      case_number:               preview.case_number,
-      caption:                   preview.title ?? preview.case_number,
-      title:                     preview.title,
-      filing_date:               preview.filing_date,
-      claim_amount:              preview.claim_amount,
+      case_number:               caseNumber,
+      caption:                   caseNumber,
+      title:                     null,
+      filing_date:               null,
+      claim_amount:              null,
       confidence_missing_fields: [],
       documents_detected:        [],
       important_dates:           [],
@@ -158,7 +134,7 @@ async function createPreviewCase(
     .select('id')
     .single()
 
-  if (error || !data) throw new Error(`Preview case creation failed: ${error?.message}`)
+  if (error || !data) throw new Error(`Placeholder case creation failed: ${error?.message}`)
   return data.id
 }
 
@@ -172,7 +148,7 @@ async function enrichCase(
           administrative_proceedings, legal_claim, lawyers, important_dates,
           documents_detected, summary, confidence } = metadata
 
-  await db.from('case_files').update({
+  const { error: caseUpdateError } = await db.from('case_files').update({
     case_number:               c.case_number,
     caption:                   c.title ?? c.case_number,
     title:                     c.title ?? null,
@@ -194,6 +170,8 @@ async function enrichCase(
     processing_phase:          'complete',
     updated_by:                uploadedBy,
   }).eq('id', caseFileId)
+
+  if (caseUpdateError) throw new Error(`case_files enrichment update failed: ${caseUpdateError.message}`)
 
   // Satellite upserts — delete existing rows first to avoid duplicates on re-run
   await db.from('case_file_plaintiff').delete().eq('case_file_id', caseFileId)
@@ -340,96 +318,32 @@ export async function runProcessingPipeline(documentIds: string[]): Promise<void
 
   const uploadedBy = pending[0].uploaded_by
 
-  // ══ PHASE 1 — pdf-parse + regex (fast preview) ═══════════════════════════════
+  // ══ PHASE 1 — create placeholder case instantly ═══════════════════════════════
 
-  console.log('[pipeline] Phase 1: pdf-parse + regex extraction')
-
-  interface ParseResult {
-    id: string
-    filename: string
-    blob: Blob
-    text: string
-    ok: boolean
-  }
-
-  const parseResults = await Promise.all(
-    pending.map(async (d): Promise<ParseResult> => {
-      try {
-        const blob = await downloadFile(db, d.storage_key)
-        const text = await extractTextWithPdfParse(blob)
-        const words = text.trim().split(/\s+/).length
-        console.log(`[pipeline:p1] ${d.original_filename} — ${words} words from pdf-parse`)
-        return { id: d.id, filename: d.original_filename, blob, text, ok: true }
-      } catch (err) {
-        console.error(`[pipeline:p1] pdf-parse failed for ${d.id}:`, err)
-        await setError(db, d.id, 'OCR_IN_PROGRESS', String((err as Error).message))
-        return { id: d.id, filename: d.original_filename, blob: new Blob(), text: '', ok: false }
-      }
-    })
-  )
-
-  const p1Ok = parseResults.filter((r) => r.ok && r.text.trim().length > 100)
-  const p1Fallback = parseResults.filter((r) => r.ok && r.text.trim().length <= 100)
-  // Files with very little text are scanned PDFs — Phase 2 OCR will handle them
-
-  // Combine text from all documents that pdf-parse extracted successfully
-  const combinedText = p1Ok.map((r) => `--- ${r.filename} ---\n${r.text}`).join('\n\n')
-
-  // Regex extract a case preview from combined text
-  const rx = combinedText.trim() ? regexExtract(combinedText) : { case_number: null, filing_date: null, claim_amount: null, title: null }
-
-  // Build case number fallback: YYYYMMDD-<first filename stem>
-  const fallbackCaseNum = `BORRADOR-${new Date().toISOString().slice(0, 10)}`
-  const caseNum = rx.case_number ?? fallbackCaseNum
-
-  // OCR service availability — quick HEAD ping
+  // OCR service availability — quick ping
   const ocrAvailable = await fetch(`${OCR_SERVICE_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(3000) })
     .then((r) => r.ok)
     .catch(() => false)
 
-  // If there are scanned PDFs (no text from pdf-parse), Phase 2 is needed → 'analyzing'
-  // If all text came from pdf-parse AND no OCR service → 'preview'
-  // If OCR available → always 'analyzing' (Phase 2 will enrich with LLM)
   const processingPhase = ocrAvailable ? 'analyzing' : 'preview'
+  const placeholderNum  = `BORRADOR-${new Date().toISOString().slice(0, 10)}`
 
   let caseFileId: string
-  let caseCreated = false
 
-  // Check for existing case with same case_number
-  const { data: existing } = await db
-    .from('case_files')
-    .select('id')
-    .eq('case_number', caseNum)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  if (existing) {
-    caseFileId = existing.id
-    console.log(`[pipeline:p1] matched existing case ${caseFileId}`)
-  } else {
-    try {
-      caseFileId = await createPreviewCase(db, {
-        case_number:  caseNum,
-        title:        rx.title,
-        filing_date:  rx.filing_date,
-        claim_amount: rx.claim_amount,
-      }, processingPhase as 'preview' | 'analyzing', uploadedBy)
-      caseCreated = true
-      console.log(`[pipeline:p1] preview case created: ${caseFileId} (phase=${processingPhase})`)
-    } catch (err) {
-      console.error('[pipeline:p1] case creation failed:', err)
-      await Promise.all(pending.map((d) => setError(db, d.id, 'CASE_GENERATION', String((err as Error).message))))
-      return
-    }
+  try {
+    caseFileId = await createPlaceholderCase(db, placeholderNum, processingPhase, uploadedBy)
+    console.log(`[pipeline:p1] placeholder case created: ${caseFileId} (phase=${processingPhase})`)
+  } catch (err) {
+    console.error('[pipeline:p1] case creation failed:', err)
+    await Promise.all(pending.map((d) => setError(db, d.id, 'CASE_GENERATION', String((err as Error).message))))
+    return
   }
 
-  // Attach all docs to the case
+  // Attach all docs to the case and mark COMPLETED so the upload UI shows progress
   await db.from('case_file_documents').update({ case_file_id: caseFileId }).in('id', documentIds)
-
-  // Mark all documents COMPLETED — from the upload UI's perspective the job is done
   await Promise.all(pending.map((d) => setStatus(db, d.id, 'COMPLETED')))
 
-  console.log(`[pipeline:p1] ✓ Phase 1 complete — case=${caseFileId} caseCreated=${caseCreated} docs=${pending.length}`)
+  console.log(`[pipeline:p1] ✓ Phase 1 complete — case=${caseFileId} docs=${pending.length}`)
 
   // ══ PHASE 2 — OCR + LLM enrichment (background) ══════════════════════════════
 
@@ -438,54 +352,45 @@ export async function runProcessingPipeline(documentIds: string[]): Promise<void
     return
   }
 
-  // Phase 2 runs fire-and-forget — errors are logged, never bubble up
-  const phase2Docs = pending.map((d) => {
-    const parsed = parseResults.find((r) => r.id === d.id)
-    return {
-      id: d.id,
-      filename: d.original_filename,
-      blob: parsed?.ok ? parsed.blob : undefined,
-      storage_key: d.storage_key,
-    }
-  })
-  runPhase2(db, phase2Docs, p1Fallback.map((r) => r.id), caseFileId, uploadedBy)
+  const phase2Docs = pending.map((d) => ({ id: d.id, filename: d.original_filename, storage_key: d.storage_key }))
+  runPhase2(db, phase2Docs, caseFileId, uploadedBy)
     .catch((err) => console.error('[pipeline:p2] unhandled error:', err))
 }
 
 async function runPhase2(
   db: AnyDB,
-  pending: Array<{ id: string; filename: string; blob?: Blob; storage_key?: string }>,
-  scannedIds: string[],
+  pending: Array<{ id: string; filename: string; storage_key: string }>,
   caseFileId: string,
   uploadedBy: string,
 ) {
-  console.log('[pipeline:p2] Starting Phase 2 — OCR + LLM')
+  const total = pending.length
+  console.log(`[pipeline:p2] Starting Phase 2 — OCR + LLM (${total} doc(s))`)
 
-  // OCR all documents (re-download scanned ones that had no pdf-parse text)
-  const ocrResults = await Promise.all(
-    pending.map(async (d) => {
-      try {
-        let blob: Blob
-        if (d.blob && d.blob.size > 0) {
-          blob = d.blob
-        } else {
-          blob = await (createAdminClient() as AnyDB).storage
-            .from(process.env.SUPABASE_STORAGE_BUCKET ?? 'documents')
-            .download(d.storage_key!)
-            .then(({ data, error }: { data: Blob | null; error: Error | null }) => {
-              if (error || !data) throw new Error(`Download failed: ${error?.message}`)
-              return data
-            })
-        }
-        const text = await runOCR(blob, d.filename)
-        console.log(`[pipeline:p2] OCR complete for ${d.id} — ${text.split(/\s+/).length} words`)
-        return { id: d.id, filename: d.filename, text, ok: true as const }
-      } catch (err) {
-        console.error(`[pipeline:p2] OCR failed for ${d.id}:`, err)
-        return { id: d.id, ok: false as const }
-      }
-    })
-  )
+  await db.from('case_files').update({
+    phase2_docs_total:     total,
+    phase2_docs_completed: 0,
+  }).eq('id', caseFileId)
+
+  let completed = 0
+  const ocrResults: Array<
+    { id: string; filename: string; text: string; ok: true } |
+    { id: string; ok: false }
+  > = []
+
+  for (const d of pending) {
+    try {
+      const blob = await downloadFile(db, d.storage_key)
+      const text = await runOCR(blob, d.filename)
+      completed++
+      console.log(`[pipeline:p2] OCR ${completed}/${total} — ${d.filename} (${text.split(/\s+/).length} words)`)
+      // Update progress counter in DB so polling UI shows X/Y
+      await db.from('case_files').update({ phase2_docs_completed: completed }).eq('id', caseFileId)
+      ocrResults.push({ id: d.id, filename: d.filename, text, ok: true })
+    } catch (err) {
+      console.error(`[pipeline:p2] OCR failed for ${d.id}:`, err)
+      ocrResults.push({ id: d.id, ok: false })
+    }
+  }
 
   const ocrOk = ocrResults.filter(
     (r): r is { id: string; filename: string; text: string; ok: true } => r.ok

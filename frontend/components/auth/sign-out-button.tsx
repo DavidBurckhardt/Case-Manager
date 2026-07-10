@@ -14,7 +14,7 @@ export function SignOutButton() {
       disabled={pending}
       onClick={() => startTransition(() => signOut())}
     >
-      {pending ? 'Signing out…' : 'Sign out'}
+      {pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
     </Button>
   )
 }

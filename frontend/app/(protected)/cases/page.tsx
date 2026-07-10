@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { DeleteCaseButton } from '@/components/cases/delete-case-button'
 import { cn } from '@/lib/utils'
 
-export const metadata = { title: 'Cases — Generador de Expedientes' }
+export const metadata = { title: 'Expedientes — Generador de Expedientes' }
 
 const CLOSED_CODES = new Set(['closed', 'archived'])
 
@@ -31,7 +31,7 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
     cases = result.data
     total = result.total
   } catch (err) {
-    loadError = err instanceof Error ? err.message : 'Failed to load cases.'
+    loadError = err instanceof Error ? err.message : 'Error al cargar los expedientes.'
   }
 
   return (
@@ -42,9 +42,9 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
           <FolderOpen className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Cases</h2>
+          <h2 className="text-xl font-semibold">Expedientes</h2>
           <p className="text-sm text-muted-foreground">
-            {total} case{total !== 1 ? 's' : ''} generated from processed documents.
+            {total} expediente{total !== 1 ? 's' : ''} generado{total !== 1 ? 's' : ''} a partir de documentos procesados.
           </p>
         </div>
       </div>
@@ -57,7 +57,7 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
             type="search"
             name="search"
             defaultValue={search ?? ''}
-            placeholder="Search by case number, caption, or court…"
+            placeholder="Buscar por número, carátula o juzgado…"
             className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
@@ -68,11 +68,11 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
       {!loadError && cases.length === 0 && (
         <EmptyState
           icon={FolderOpen}
-          title={search ? 'No cases match your search' : 'No cases yet'}
+          title={search ? 'No hay expedientes que coincidan con tu búsqueda' : 'Sin expedientes aún'}
           description={
             search
-              ? 'Try a different search term.'
-              : 'Cases are created automatically once uploaded documents finish processing.'
+              ? 'Probá con otro término de búsqueda.'
+              : 'Los expedientes se crean automáticamente una vez que los documentos subidos terminan de procesarse.'
           }
         />
       )}
@@ -82,13 +82,13 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                <th className="px-4 py-3 font-medium">Case</th>
-                <th className="px-4 py-3 font-medium">Court / Jurisdiction</th>
-                <th className="px-4 py-3 font-medium">Matter</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Updated</th>
+                <th className="px-4 py-3 font-medium">Expediente</th>
+                <th className="px-4 py-3 font-medium">Juzgado / Jurisdicción</th>
+                <th className="px-4 py-3 font-medium">Materia</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium">Actualizado</th>
                 <th className="px-4 py-3 font-medium">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">Acciones</span>
                 </th>
               </tr>
             </thead>
@@ -128,7 +128,7 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
                             ? 'bg-blue-500/15 text-blue-700'
                             : 'bg-amber-500/15 text-amber-700'
                         )}>
-                          {c.processing_phase === 'analyzing' ? 'Analyzing…' : 'Preview'}
+                          {c.processing_phase === 'analyzing' ? 'Analizando…' : 'Vista previa'}
                         </Badge>
                       )}
                     </div>
