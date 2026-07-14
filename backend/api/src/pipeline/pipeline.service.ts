@@ -1,16 +1,19 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { SupabaseService } from '../supabase/supabase.service'
 import { NatsService } from '../messaging/nats.service'
-import { ExtractionService } from '../llm/extraction.service'
+import { ExtractionService, ExtractionFile } from '../llm/extraction.service'
 import type { ExtractedCase } from '../llm/extraction.schema'
-import type { OcrResult } from '../messaging/contracts'
+import type { ExtractRequest } from '../messaging/contracts'
+
+/** MIME types the LLM accepts directly (PDF as a file, images as vision input). */
+const LLM_SUPPORTED = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/')
 
 /**
- * Orchestrates the two-phase pipeline on the results side.
+ * Orchestrates the two-phase pipeline.
  *
  * Phase 1 (createPlaceholderCase) runs synchronously from the upload request.
- * Phase 2 is event-driven: each ocr.result is aggregated here; when the last
- * document of a case is done, the combined text is sent to the LLM and the
+ * Phase 2 is event-driven: one extract.request per case is consumed here, the
+ * raw documents are downloaded and sent straight to the LLM (no OCR), and the
  * case is enriched (processing_phase → 'complete').
  */
 @Injectable()
@@ -29,7 +32,7 @@ export class PipelineService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    await this.nats.consumeResults((result) => this.handleOcrResult(result))
+    await this.nats.consumeRequests((req) => this.handleExtractRequest(req))
   }
 
   // ── Phase 1 ────────────────────────────────────────────────────────────────
@@ -60,8 +63,10 @@ export class PipelineService implements OnApplicationBootstrap {
         important_dates: [],
         legal_claim: {},
         processing_phase: 'analyzing',
+        // No per-document progress anymore: the whole case is extracted in one
+        // LLM call, so all docs are "in analysis" at once (drives the UI badge).
         phase2_docs_total: docsTotal,
-        phase2_docs_completed: 0,
+        phase2_docs_completed: docsTotal,
         current_status_id: stateId,
         created_by: uploadedBy,
         updated_by: uploadedBy,
@@ -75,81 +80,67 @@ export class PipelineService implements OnApplicationBootstrap {
 
   // ── Phase 2 (event-driven) ───────────────────────────────────────────────────
 
-  private async handleOcrResult(result: OcrResult): Promise<void> {
-    const { caseId, documentId } = result
+  /**
+   * Consume one extraction job: download the case's documents, send them raw to
+   * the LLM, and enrich the case. Idempotent under JetStream redelivery — a
+   * job for a case no longer in 'analyzing' is a no-op, and enrichCase itself
+   * is idempotent (it replaces satellite rows).
+   */
+  private async handleExtractRequest(req: ExtractRequest): Promise<void> {
+    const { caseId, documents } = req
 
-    // Idempotency guard: a document records its OCR outcome exactly once. The
-    // conditional update matches zero rows on a redelivered message (JetStream
-    // at-least-once), so we neither overwrite nor double-count the progress.
-    let firstTime: boolean
-    if (result.ok) {
-      const { data, error } = await this.db
-        .from('case_file_documents')
-        .update({ ocr_text: result.text })
-        .eq('id', documentId)
-        .is('ocr_text', null)
-        .select('id')
-      if (error) throw new Error(`Persisting ocr_text failed: ${error.message}`)
-      firstTime = (data?.length ?? 0) > 0
-      this.logger.log(`OCR result — case=${caseId} doc=${documentId} pages=${result.pages} first=${firstTime}`)
-    } else {
-      const { data, error } = await this.db
-        .from('case_file_documents')
-        .update({ processing_error: result.error, processing_error_stage: 'OCR_IN_PROGRESS' })
-        .eq('id', documentId)
-        .is('ocr_text', null)
-        .is('processing_error', null)
-        .select('id')
-      if (error) throw new Error(`Recording OCR failure failed: ${error.message}`)
-      firstTime = (data?.length ?? 0) > 0
-      this.logger.warn(`OCR failed — case=${caseId} doc=${documentId} first=${firstTime}: ${result.error}`)
+    const { data: caseRow, error: caseErr } = await this.db
+      .from('case_files')
+      .select('processing_phase')
+      .eq('id', caseId)
+      .single()
+    if (caseErr || !caseRow) throw new Error(`Case ${caseId} not found: ${caseErr?.message}`)
+    if (caseRow.processing_phase !== 'analyzing') {
+      this.logger.log(`Case ${caseId} already in '${caseRow.processing_phase}' — skipping (redelivery)`)
+      return
     }
 
-    // Redelivery of an already-recorded result — nothing more to do.
-    if (!firstTime) return
+    this.logger.log(`Extract job — case=${caseId} docs=${documents.length}`)
 
-    // Atomic increment + read — only the message that reaches total triggers finalize.
-    const { data, error } = await this.db.rpc('increment_phase2_progress', { p_case_id: caseId })
-    if (error) throw new Error(`increment_phase2_progress failed: ${error.message}`)
-    const row = Array.isArray(data) ? data[0] : data
-    const completed = row?.completed ?? 0
-    const total = row?.total ?? 0
-    this.logger.log(`Progress — case=${caseId} ${completed}/${total}`)
-
-    if (total > 0 && completed >= total) {
-      await this.finalizeCase(caseId)
+    // Download the raw bytes and keep only what the LLM can read directly.
+    const files: ExtractionFile[] = []
+    for (const doc of documents) {
+      if (!LLM_SUPPORTED(doc.mime)) {
+        this.logger.warn(`Skipping unsupported type for LLM: ${doc.filename} (${doc.mime})`)
+        await this.db
+          .from('case_file_documents')
+          .update({ processing_error: `Tipo no soportado por el LLM: ${doc.mime}`, processing_error_stage: 'LLM_EXTRACTION' })
+          .eq('id', doc.documentId)
+        continue
+      }
+      const { buffer } = await this.supabase.downloadObject(doc.storageKey)
+      files.push({ filename: doc.filename, mime: doc.mime, buffer })
     }
-  }
 
-  private async finalizeCase(caseId: string): Promise<void> {
-    const { data: docs, error } = await this.db
-      .from('case_file_documents')
-      .select('original_filename, ocr_text')
-      .eq('case_file_id', caseId)
-      .is('deleted_at', null)
-    if (error) throw new Error(`Loading OCR text failed: ${error.message}`)
-
-    const withText = (docs ?? []).filter((d: { ocr_text?: string }) => d.ocr_text?.trim())
-
-    if (!withText.length) {
-      this.logger.error(`Case ${caseId} — no OCR text survived; leaving as preview`)
+    if (!files.length) {
+      this.logger.error(`Case ${caseId} — no LLM-readable documents; leaving as preview`)
       await this.db.from('case_files').update({ processing_phase: 'preview' }).eq('id', caseId)
       return
     }
 
-    const combinedText = withText
-      .map((d: { original_filename: string; ocr_text: string }) => `--- ${d.original_filename} ---\n${d.ocr_text}`)
-      .join('\n\n')
-
     let metadata: ExtractedCase
     try {
-      metadata = await this.extraction.extractCaseMetadata(combinedText)
+      metadata = await this.extraction.extractCaseMetadata(files)
     } catch (err) {
       this.logger.error(`LLM extraction failed for case ${caseId}: ${(err as Error).message}`)
+      await this.db.from('case_files').update({ processing_phase: 'preview' }).eq('id', caseId)
       return
     }
 
-    await this.enrichCase(caseId, metadata)
+    try {
+      await this.enrichCase(caseId, metadata)
+    } catch (err) {
+      // Don't nack — a permanent DB error will loop forever calling the LLM.
+      // Mark as preview so the idempotency guard stops re-processing.
+      this.logger.error(`Case enrichment failed for case ${caseId}: ${(err as Error).message}`)
+      await this.db.from('case_files').update({ processing_phase: 'preview' }).eq('id', caseId)
+      return
+    }
     this.logger.log(`✓ Case ${caseId} enriched — processing_phase=complete`)
   }
 
@@ -185,7 +176,40 @@ export class PipelineService implements OnApplicationBootstrap {
       })
       .eq('id', caseFileId)
 
-    if (caseUpdateError) throw new Error(`case_files enrichment update failed: ${caseUpdateError.message}`)
+    if (caseUpdateError) {
+      // Postgres unique_violation (23505): another active case already has this case_number.
+      // Retry without overwriting it — the placeholder number stays, but all other fields
+      // (title, court, summary, processing_phase=complete, …) are still applied.
+      if (caseUpdateError.code === '23505') {
+        this.logger.warn(`case_number "${c.case_number}" already taken — keeping placeholder number`)
+        const { error: retryErr } = await this.db
+          .from('case_files')
+          .update({
+            caption: c.title ?? c.case_number,
+            title: c.title ?? null,
+            court: c.court ?? null,
+            jurisdiction: c.jurisdiction ?? null,
+            clerk_office: c.department ?? null,
+            department: c.department ?? null,
+            process_type: c.process_type ?? null,
+            matter: c.legal_matter ?? null,
+            legal_matter: c.legal_matter ?? null,
+            filing_date: c.filing_date ?? null,
+            claim_amount: c.claim_amount ?? null,
+            summary: summary ?? null,
+            confidence_overall: confidence?.overall ?? null,
+            confidence_missing_fields: confidence?.missing_fields ?? [],
+            documents_detected: documents_detected ?? [],
+            important_dates: important_dates ?? [],
+            legal_claim: legal_claim ?? {},
+            processing_phase: 'complete',
+          })
+          .eq('id', caseFileId)
+        if (retryErr) throw new Error(`case_files enrichment retry failed: ${retryErr.message}`)
+      } else {
+        throw new Error(`case_files enrichment update failed: ${caseUpdateError.message}`)
+      }
+    }
 
     // Satellite upserts — delete existing rows first to avoid duplicates on re-run.
     await this.db.from('case_file_plaintiff').delete().eq('case_file_id', caseFileId)

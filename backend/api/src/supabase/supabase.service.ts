@@ -59,12 +59,12 @@ export class SupabaseService implements OnModuleInit {
     if (error) throw new Error(`Storage upload failed: ${error.message}`)
   }
 
-  async createSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
-    const { data, error } = await this._admin.storage
-      .from(this.bucket)
-      .createSignedUrl(key, expiresInSeconds)
-    if (error || !data) throw new Error(`Signed URL failed: ${error?.message}`)
-    return data.signedUrl
+  /** Download an object's bytes. Used to feed raw documents to the LLM. */
+  async downloadObject(key: string): Promise<{ buffer: Buffer; contentType: string }> {
+    const { data, error } = await this._admin.storage.from(this.bucket).download(key)
+    if (error || !data) throw new Error(`Storage download failed: ${error?.message}`)
+    const buffer = Buffer.from(await data.arrayBuffer())
+    return { buffer, contentType: data.type || 'application/octet-stream' }
   }
 
   async deleteObject(key: string): Promise<void> {

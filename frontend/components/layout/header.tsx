@@ -1,19 +1,19 @@
 'use client'
 
-import { Bell, Search } from 'lucide-react'
+import { Bell, LogOut, Search } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { signOut } from '@/actions/auth'
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 
 interface HeaderProps {
   title?: string
@@ -26,6 +26,7 @@ function getInitials(email?: string) {
 }
 
 export function Header({ title, userEmail }: HeaderProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
   return (
@@ -59,40 +60,49 @@ export function Header({ title, userEmail }: HeaderProps) {
           <Bell className="h-4 w-4" />
         </Button>
 
-        {/* User menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            className="flex h-8 w-8 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label="Menú de usuario"
-          >
-            <Avatar className="h-7 w-7">
-              <AvatarFallback className="bg-primary text-[11px] text-primary-foreground">
-                {getInitials(userEmail)}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-medium">Conectado como</span>
-                <span className="max-w-[180px] truncate text-xs text-muted-foreground">
-                  {userEmail}
-                </span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem disabled>Perfil</DropdownMenuItem>
-            <DropdownMenuItem disabled>Configuración</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              disabled={pending}
-              onSelect={() => startTransition(() => signOut())}
-            >
-              {pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* User avatar → sign-out confirmation */}
+        <button
+          type="button"
+          onClick={() => setConfirmOpen(true)}
+          className="flex h-8 w-8 items-center justify-center rounded-full outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Menú de usuario"
+        >
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="bg-primary text-[11px] text-primary-foreground">
+              {getInitials(userEmail)}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>¿Cerrar sesión?</DialogTitle>
+              <DialogDescription>
+                {userEmail
+                  ? <>Estás conectado como <span className="font-medium text-foreground">{userEmail}</span>. Vas a volver a la pantalla de inicio de sesión.</>
+                  : 'Vas a volver a la pantalla de inicio de sesión.'}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={pending}
+                onClick={() => setConfirmOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={pending}
+                onClick={() => startTransition(() => signOut())}
+              >
+                <LogOut className="h-4 w-4" />
+                {pending ? 'Cerrando sesión…' : 'Cerrar sesión'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </header>
   )

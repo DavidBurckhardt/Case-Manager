@@ -110,16 +110,6 @@ export default async function CaseDetailPage({ params }: Props) {
               {jurisdiction && <> · {jurisdiction}</>}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {confidence_overall && (
-              <Badge variant="outline" className={cn('border-0 text-xs', CONFIDENCE_STYLES[confidence_overall])}>
-                Confianza: {confidence_overall}
-              </Badge>
-            )}
-            <Badge variant="outline" className="border-0 bg-green-500/15 text-green-700 text-xs">
-              {current_status.label}
-            </Badge>
-          </div>
         </div>
       </div>
 

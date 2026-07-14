@@ -1,7 +1,9 @@
 import { z } from 'zod'
 
-const nullStr = z.string().nullable().optional()
-const nullDate = z.string().nullable().optional() // YYYY-MM-DD
+// .catch(null) handles cases where the LLM returns an object or array
+// instead of a string/date — coerces to null rather than failing the parse.
+const nullStr = z.string().nullable().optional().catch(null)
+const nullDate = z.string().nullable().optional().catch(null) // YYYY-MM-DD
 
 export const extractedCaseSchema = z.object({
   case: z.object({

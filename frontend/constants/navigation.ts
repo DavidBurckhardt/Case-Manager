@@ -32,10 +32,10 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Trabajo',
     items: [
-      { label: 'Expedientes',    href: '/cases',         icon: FolderOpen },
       { label: 'Procesamiento',  href: '/processing',    icon: Cpu },
-      { label: 'Vencimientos',   href: '/deadlines',     icon: Clock },
+      { label: 'Expedientes',    href: '/cases',         icon: FolderOpen },
       { label: 'Documentos',     href: '/documents',     icon: FileText },
+      { label: 'Vencimientos',   href: '/deadlines',     icon: Clock },
       { label: 'Notificaciones', href: '/notifications', icon: Bell },
     ],
   },

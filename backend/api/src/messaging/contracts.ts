@@ -1,20 +1,26 @@
-/** Event contracts exchanged with the OCR worker over NATS JetStream. */
+/**
+ * Event contracts for the case-extraction job queue (NATS JetStream).
+ *
+ * The API publishes one extraction job per case and also consumes it: a durable
+ * work-queue that keeps uploads non-blocking and survives an API restart. There
+ * is no OCR step anymore — the raw documents go straight to the LLM.
+ */
 
-export const JOBS_STREAM = 'OCR_JOBS'
-export const JOBS_SUBJECT = 'ocr.request'
-export const RESULTS_STREAM = 'OCR_RESULTS'
-export const RESULTS_SUBJECT = 'ocr.result'
-export const RESULTS_DURABLE = 'api-results'
+export const JOBS_STREAM = 'EXTRACT_JOBS'
+export const JOBS_SUBJECT = 'extract.request'
+export const JOBS_DURABLE = 'api-extractors'
 
-export interface OcrRequest {
-  jobId: string
-  caseId: string
+/** A document reference within an extraction job (bytes stay in Storage). */
+export interface ExtractDocument {
   documentId: string
   filename: string
   mime: string
-  downloadUrl: string
+  storageKey: string
 }
 
-export type OcrResult =
-  | { jobId: string; caseId: string; documentId: string; ok: true; text: string; pages: number }
-  | { jobId: string; caseId: string; documentId: string; ok: false; error: string }
+/** One extraction job per case: all of its documents, extracted in a single LLM call. */
+export interface ExtractRequest {
+  jobId: string
+  caseId: string
+  documents: ExtractDocument[]
+}

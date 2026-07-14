@@ -2,10 +2,19 @@ import { Injectable, Logger } from '@nestjs/common'
 import OpenAI from 'openai'
 import { ExtractedCase, extractedCaseSchema, SYSTEM_PROMPT } from './extraction.schema'
 
+/** A raw document handed to the LLM (bytes + metadata). */
+export interface ExtractionFile {
+  filename: string
+  mime: string
+  buffer: Buffer
+}
+
+type InputContent = OpenAI.Responses.ResponseInputContent
+
 @Injectable()
 export class ExtractionService {
   private readonly logger = new Logger(ExtractionService.name)
-  private readonly model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+  private readonly model = process.env.OPENAI_MODEL ?? 'gpt-5.6-luna'
   private _client: OpenAI | null = null
 
   private client(): OpenAI {
@@ -16,20 +25,45 @@ export class ExtractionService {
     return this._client
   }
 
-  async extractCaseMetadata(ocrText: string): Promise<ExtractedCase> {
-    this.logger.log(`Calling ${this.model} — ${ocrText.length} chars of OCR text`)
+  /** Turn a document into a Responses API content part (image vs. file). */
+  private toContentPart(file: ExtractionFile): InputContent {
+    const dataUrl = `data:${file.mime};base64,${file.buffer.toString('base64')}`
+    if (file.mime.startsWith('image/')) {
+      return { type: 'input_image', detail: 'auto', image_url: dataUrl }
+    }
+    return { type: 'input_file', filename: file.filename, file_data: dataUrl }
+  }
 
-    const response = await this.client().chat.completions.create({
+  /**
+   * Extract structured case metadata by sending the raw documents (PDFs/images)
+   * straight to the LLM — no OCR step. All documents of a case go in a single
+   * call so the model can cross-reference them (the prompt merges multi-doc info).
+   */
+  async extractCaseMetadata(files: ExtractionFile[]): Promise<ExtractedCase> {
+    if (!files.length) throw new Error('No documents to extract')
+
+    const totalBytes = files.reduce((n, f) => n + f.buffer.length, 0)
+    this.logger.log(
+      `Calling ${this.model} — ${files.length} document(s), ${(totalBytes / 1024).toFixed(0)} KB`,
+    )
+
+    const content: InputContent[] = [
+      {
+        type: 'input_text',
+        text: 'A continuación se adjuntan los documentos escaneados de un expediente legal argentino (PDF/imágenes). Extraé la información al JSON solicitado.',
+      },
+      ...files.map((f) => this.toContentPart(f)),
+    ]
+
+    const response = await this.client().responses.create({
       model: this.model,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: ocrText },
-      ],
+      reasoning: { effort: 'low' },
+      instructions: SYSTEM_PROMPT,
+      input: [{ role: 'user', content }],
+      text: { format: { type: 'json_object' } },
     })
 
-    const raw = response.choices[0]?.message?.content
+    const raw = response.output_text
     if (!raw) throw new Error('Empty response from LLM')
 
     let parsed: unknown

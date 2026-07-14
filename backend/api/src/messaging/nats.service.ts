@@ -8,30 +8,28 @@ import {
   RetentionPolicy,
   StringCodec,
 } from 'nats'
-import {
-  JOBS_STREAM,
-  JOBS_SUBJECT,
-  OcrRequest,
-  OcrResult,
-  RESULTS_DURABLE,
-  RESULTS_STREAM,
-  RESULTS_SUBJECT,
-} from './contracts'
+import { ExtractRequest, JOBS_DURABLE, JOBS_STREAM, JOBS_SUBJECT } from './contracts'
 
-export type OcrResultHandler = (result: OcrResult) => Promise<void>
+export type ExtractRequestHandler = (req: ExtractRequest) => Promise<void>
 
 /**
- * Thin wrapper over NATS JetStream:
- *   • publishes OCR jobs (ocr.request)
- *   • consumes OCR results (ocr.result) and dispatches them to a handler
+ * Thin wrapper over NATS JetStream. The API is both producer and consumer of the
+ * extraction work-queue:
+ *   • publishes extraction jobs (extract.request) from the upload request
+ *   • consumes them in the background and dispatches to a handler
  *
- * Streams are created idempotently on startup so the API and the worker can
- * come up in any order.
+ * The work-queue retention + explicit ack give us durability and redelivery so a
+ * job is never lost on an API restart, and uploads stay non-blocking.
  */
 @Injectable()
 export class NatsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NatsService.name)
   private readonly sc = StringCodec()
+
+  // OCR is gone, but the LLM call over a large batch of PDFs can still take a
+  // while — give each message a generous ack window before redelivery.
+  private static readonly ACK_WAIT_NS = 15 * 60 * 1_000_000_000 // 15 min in ns
+  private static readonly MAX_DELIVER = 4
 
   private nc!: NatsConnection
   private js!: JetStreamClient
@@ -63,60 +61,60 @@ export class NatsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async ensureStreams() {
-    const specs = [
-      { name: JOBS_STREAM, subjects: [JOBS_SUBJECT], retention: RetentionPolicy.Workqueue },
-      { name: RESULTS_STREAM, subjects: [RESULTS_SUBJECT], retention: RetentionPolicy.Limits },
-    ]
-    for (const spec of specs) {
-      try {
-        await this.jsm.streams.add(spec)
-        this.logger.log(`Stream ready — ${spec.name} (${spec.subjects[0]})`)
-      } catch (err) {
-        // Already exists (or concurrent create) — that's fine.
-        this.logger.debug(`streams.add ${spec.name}: ${(err as Error).message}`)
-      }
+    try {
+      await this.jsm.streams.add({
+        name: JOBS_STREAM,
+        subjects: [JOBS_SUBJECT],
+        retention: RetentionPolicy.Workqueue,
+      })
+      this.logger.log(`Stream ready — ${JOBS_STREAM} (${JOBS_SUBJECT})`)
+    } catch (err) {
+      // Already exists (or concurrent create) — that's fine.
+      this.logger.debug(`streams.add ${JOBS_STREAM}: ${(err as Error).message}`)
     }
   }
 
-  async publishOcrRequest(req: OcrRequest): Promise<void> {
+  async publishExtractRequest(req: ExtractRequest): Promise<void> {
     await this.js.publish(JOBS_SUBJECT, this.sc.encode(JSON.stringify(req)))
   }
 
   /**
-   * Start consuming ocr.result and dispatch each message to `handler`.
-   * Called once, from the pipeline module on bootstrap.
+   * Start consuming extract.request and dispatch each message to `handler`.
+   * Called once, from the pipeline on bootstrap. Acks on success; naks on a
+   * thrown error so a transient failure is redelivered (up to MAX_DELIVER).
    */
-  async consumeResults(handler: OcrResultHandler): Promise<void> {
+  async consumeRequests(handler: ExtractRequestHandler): Promise<void> {
     if (this.consuming) return
     this.consuming = true
 
     try {
-      await this.jsm.consumers.add(RESULTS_STREAM, {
-        durable_name: RESULTS_DURABLE,
+      await this.jsm.consumers.add(JOBS_STREAM, {
+        durable_name: JOBS_DURABLE,
         ack_policy: AckPolicy.Explicit,
-        ack_wait: 60 * 1_000_000_000, // 60s in ns
+        ack_wait: NatsService.ACK_WAIT_NS,
+        max_deliver: NatsService.MAX_DELIVER,
       })
     } catch (err) {
       this.logger.debug(`consumers.add: ${(err as Error).message}`)
     }
 
-    const consumer = await this.js.consumers.get(RESULTS_STREAM, RESULTS_DURABLE)
+    const consumer = await this.js.consumers.get(JOBS_STREAM, JOBS_DURABLE)
     const messages = await consumer.consume()
-    this.logger.log('Consuming ocr.result…')
+    this.logger.log('Consuming extract.request…')
 
     // Background loop — do not await.
     ;(async () => {
       for await (const m of messages) {
         try {
-          const result = JSON.parse(this.sc.decode(m.data)) as OcrResult
-          await handler(result)
+          const req = JSON.parse(this.sc.decode(m.data)) as ExtractRequest
+          await handler(req)
           m.ack()
         } catch (err) {
-          this.logger.error(`Failed handling ocr.result: ${(err as Error).message}`)
-          // Redeliver so a transient DB/LLM error doesn't lose the result.
+          this.logger.error(`Failed handling extract.request: ${(err as Error).message}`)
+          // Redeliver so a transient download/LLM error doesn't lose the job.
           m.nak()
         }
       }
-    })().catch((err) => this.logger.error(`Result consumer stopped: ${err.message}`))
+    })().catch((err) => this.logger.error(`Request consumer stopped: ${err.message}`))
   }
 }

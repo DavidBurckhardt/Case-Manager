@@ -40,14 +40,6 @@ export default async function DashboardPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 pb-16">
 
-      {/* Greeting */}
-      <div>
-        <h2 className="text-xl font-semibold">Buen día, {firstName}</h2>
-        <p className="text-sm text-muted-foreground">
-          Arrastrá y soltá documentos para comenzar el procesamiento. Los expedientes se crean automáticamente.
-        </p>
-      </div>
-
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map(({ label, href, icon: Icon, key }) => (

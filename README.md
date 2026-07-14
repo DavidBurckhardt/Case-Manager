@@ -3,22 +3,25 @@
 ## Architecture
 
 ```
-Browser ──HTTP+JWT──► API gateway (NestJS) ──NATS JetStream──► OCR worker (Python)
-  (Next.js UI)            │  orquesta pipeline                    │ descarga por URL firmada
-                          │  llama al LLM                         │ corre EasyOCR
-                          ◄──────────── ocr.result ───────────────┘ publica texto
-                          │
+Browser ──HTTP+JWT──► API gateway (NestJS) ──► LLM (Responses API)
+  (Next.js UI)            │  sube a Storage           envía los PDF/imágenes en crudo
+                          │  encola extract.request   (sin OCR) y devuelve JSON
+                          │  (NATS JetStream, cola     ▲
+                          │   durable auto-consumida) ─┘
                           └─► Supabase (Postgres + Storage)
 ```
 
+Los documentos van **directo al LLM** (sin paso de OCR): la extracción es una sola
+llamada por expediente con todos sus archivos, para que el modelo pueda cruzar
+información entre ellos.
+
 - **frontend** — Next.js. UI + Supabase Auth y lecturas. El upload de documentos y
-  el estado de procesamiento ya van contra la API gateway.
-- **backend/api** — NestJS. Único punto de entrada al backend: controllers, services,
-  models. Sube a Storage, crea el expediente, publica jobs de OCR, consume los
-  resultados, llama al LLM y enriquece el caso.
-- **backend/ocr** — Python. Worker de OCR (EasyOCR). Consume `ocr.request` de NATS
-  JetStream, hace OCR y publica `ocr.result`. Mantiene además `POST /ocr` HTTP legacy.
-- **nats** — broker JetStream entre la API y el worker (durabilidad + reintentos).
+  el estado de procesamiento van contra la API gateway.
+- **backend/api** — NestJS. Único punto de entrada al backend. Sube a Storage, crea
+  el expediente, encola un job de extracción, lo consume, descarga los documentos,
+  se los pasa en crudo al LLM y enriquece el caso.
+- **nats** — JetStream como cola de trabajo durable. La API publica y consume el job
+  de extracción (uploads no bloqueantes + reintentos si la API se reinicia).
 
 ## Project structure
 
@@ -26,10 +29,9 @@ Browser ──HTTP+JWT──► API gateway (NestJS) ──NATS JetStream──�
 .
 ├── frontend/            # Next.js app (UI + Supabase auth/reads)
 ├── backend/
-│   ├── api/             # NestJS API gateway (entry point to the backend)
-│   └── ocr/             # Python EasyOCR service (HTTP + NATS worker)
+│   └── api/             # NestJS API gateway (entry point + LLM extraction)
 ├── supabase/            # Supabase migrations & config
-├── docker-compose.yml   # Orchestrates nats + ocr + api + frontend
+├── docker-compose.yml   # Orchestrates nats + api + frontend
 ├── .env.local           # Local secrets (gitignored, symlinked into frontend/)
 ├── .env.production       # Production secrets (gitignored, symlinked into frontend/)
 └── .env.example          # Template for the env vars above
@@ -60,13 +62,9 @@ cp .env.example .env   # fill in real values
 npm run start:dev      # port 3001
 ```
 
-The OCR service (`backend/ocr/`) needs Python 3.11+ and a running NATS server:
-
-```bash
-cd backend/ocr
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8001   # set NATS_ENABLED=false to skip the worker
-```
+The API needs a running NATS server (JetStream) for its extraction queue. With
+Docker Compose this is provided automatically; standalone, run one locally
+(`nats-server -js`) and point `NATS_URL` at it.
 
 ## Getting started (Docker)
 
@@ -76,8 +74,8 @@ From the repo root:
 docker compose --env-file .env.local up --build
 ```
 
-This builds the `nats` (JetStream, ports 4222/8222), `ocr` (EasyOCR, port 8001),
-`api` (NestJS, port 3001) and `frontend` (Next.js, port 3000) containers.
+This builds the `nats` (JetStream, ports 4222/8222), `api` (NestJS, port 3001)
+and `frontend` (Next.js, port 3000) containers.
 
 ## Database (Supabase)
 

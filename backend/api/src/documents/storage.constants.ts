@@ -17,10 +17,6 @@ export function maxBytes(): number {
   return mb * 1024 * 1024
 }
 
-export function signedUrlExpiry(): number {
-  return Number(process.env.SIGNED_URL_EXPIRY_SECONDS ?? 3600)
-}
-
 /** Deterministic, collision-free inbox key. Original filename omitted (PII / traversal safety). */
 export function buildInboxKey(userId: string, documentId: string, ext: string): string {
   const datestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')

@@ -192,6 +192,59 @@ export async function listCaseFileDocuments(caseFileId: string): Promise<CaseFil
   return (data ?? []) as CaseFileDocument[]
 }
 
+// ─── Cases with their documents (for /documents browser) ─────────────────────
+
+export interface CaseWithDocuments {
+  id: string | null
+  case_number: string
+  title: string | null
+  caption: string | null
+  created_at: string | null
+  documents: CaseFileDocument[]
+}
+
+export async function listCasesWithDocuments(): Promise<CaseWithDocuments[]> {
+  const { supabase: db } = await requireUser()
+
+  const { data, error } = await db
+    .from('case_files')
+    .select('id, case_number, title, caption, created_at, documents:case_file_documents(*)')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+
+  if (error) throw new ApiError(error.message)
+
+  const cases: CaseWithDocuments[] = (data ?? []).map((c: CaseWithDocuments) => ({
+    ...c,
+    documents: (c.documents ?? [])
+      .filter((d) => !d.deleted_at)
+      .sort((a, b) => (b.uploaded_at ?? '').localeCompare(a.uploaded_at ?? '')),
+  }))
+
+  // Documents whose case creation failed (or was deleted) — group them apart.
+  const { data: orphans, error: orphanErr } = await db
+    .from('case_file_documents')
+    .select('*')
+    .is('case_file_id', null)
+    .is('deleted_at', null)
+    .order('uploaded_at', { ascending: false })
+
+  if (orphanErr) throw new ApiError(orphanErr.message)
+
+  if (orphans?.length) {
+    cases.push({
+      id: null,
+      case_number: 'SIN-EXPEDIENTE',
+      title: 'Sin expediente',
+      caption: null,
+      created_at: null,
+      documents: orphans as CaseFileDocument[],
+    })
+  }
+
+  return cases
+}
+
 // ─── Get by ID ────────────────────────────────────────────────────────────────
 
 export async function getCaseFileDocument(

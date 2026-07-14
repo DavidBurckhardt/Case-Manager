@@ -45,7 +45,10 @@ export class ProcessingService implements OnApplicationBootstrap {
       .limit(limit)
 
     if (!includeTerminal) {
-      query = query.not('processing_status', 'in', '("COMPLETED","ERROR")')
+      // Don't filter COMPLETED — a COMPLETED doc whose case is still 'analyzing'
+      // is not terminal (LLM is running). The client badge logic handles all states.
+      // Only ERROR docs are permanently excluded from the active view.
+      query = query.not('processing_status', 'eq', 'ERROR')
     }
 
     const { data, error } = await query

@@ -1,6 +1,6 @@
 services:
   # ─────────────────────────────────────────────────────────────────────────────
-  # NATS + JetStream — message broker between the API and the OCR worker
+  # NATS + JetStream — durable work-queue for the API's extraction jobs
   # ─────────────────────────────────────────────────────────────────────────────
   nats:
     image: nats:2.10-alpine
@@ -18,35 +18,7 @@ services:
       - app_net
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # OCR microservice (EasyOCR) — HTTP endpoint + NATS JetStream worker
-  # ─────────────────────────────────────────────────────────────────────────────
-  ocr:
-    build:
-      context: ./backend/ocr
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8001:8001"
-    environment:
-      OCR_DEBUG: ${OCR_DEBUG:-false}
-      NATS_URL: nats://nats:4222
-      NATS_ENABLED: "true"
-    volumes:
-      - easyocr_models:/root/.EasyOCR
-    depends_on:
-      nats:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s   # model loading can be slow on first run
-    networks:
-      - app_net
-
-  # ─────────────────────────────────────────────────────────────────────────────
-  # API gateway (NestJS) — single entry point to the backend
+  # API gateway (NestJS) — single entry point; uploads + LLM extraction pipeline
   # ─────────────────────────────────────────────────────────────────────────────
   api:
     build:
@@ -98,19 +70,11 @@ services:
       - "3000:3000"
     env_file:
       - .env.local        # server-side secrets (SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, …)
-    environment:
-      # Override the OCR URL so Next.js reaches the sibling container by name
-      OCR_SERVICE_URL: http://ocr:8001
     depends_on:
       api:
         condition: service_healthy
-      ocr:
-        condition: service_healthy
     networks:
       - app_net
-
-volumes:
-  easyocr_models:
 
 networks:
   app_net:
