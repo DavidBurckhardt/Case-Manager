@@ -1,10 +1,11 @@
 import type { NextConfig } from "next";
 
+const isDocker = process.env.BUILD_TARGET === 'docker'
+
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  // pdf-parse pulls in @napi-rs/canvas which references DOMMatrix at module
-  // evaluation time — bundling it breaks the Next.js build. Keep it external
-  // so Node.js requires it directly from node_modules at runtime instead.
+  // 'standalone' only needed for Docker — Vercel manages its own output format
+  // and using standalone there causes __dirname errors in Edge Runtime.
+  ...(isDocker ? { output: 'standalone' } : {}),
   serverExternalPackages: ['pdf-parse'],
 };
 
