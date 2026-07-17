@@ -151,65 +151,26 @@ export class PipelineService implements OnApplicationBootstrap {
       documents_detected, summary, confidence,
     } = metadata
 
-    const { error: caseUpdateError } = await this.db
-      .from('case_files')
-      .update({
-        case_number: c.case_number,
-        caption: c.title ?? c.case_number,
-        title: c.title ?? null,
-        court: c.court ?? null,
-        jurisdiction: c.jurisdiction ?? null,
-        clerk_office: c.department ?? null,
-        department: c.department ?? null,
-        process_type: c.process_type ?? null,
-        matter: c.legal_matter ?? null,
-        legal_matter: c.legal_matter ?? null,
-        filing_date: c.filing_date ?? null,
-        claim_amount: c.claim_amount ?? null,
-        summary: summary ?? null,
-        confidence_overall: confidence?.overall ?? null,
-        confidence_missing_fields: confidence?.missing_fields ?? [],
-        documents_detected: documents_detected ?? [],
-        important_dates: important_dates ?? [],
-        legal_claim: legal_claim ?? {},
-        processing_phase: 'complete',
-      })
-      .eq('id', caseFileId)
-
-    if (caseUpdateError) {
-      // Postgres unique_violation (23505): another active case already has this case_number.
-      // Retry without overwriting it — the placeholder number stays, but all other fields
-      // (title, court, summary, processing_phase=complete, …) are still applied.
-      if (caseUpdateError.code === '23505') {
-        this.logger.warn(`case_number "${c.case_number}" already taken — keeping placeholder number`)
-        const { error: retryErr } = await this.db
-          .from('case_files')
-          .update({
-            caption: c.title ?? c.case_number,
-            title: c.title ?? null,
-            court: c.court ?? null,
-            jurisdiction: c.jurisdiction ?? null,
-            clerk_office: c.department ?? null,
-            department: c.department ?? null,
-            process_type: c.process_type ?? null,
-            matter: c.legal_matter ?? null,
-            legal_matter: c.legal_matter ?? null,
-            filing_date: c.filing_date ?? null,
-            claim_amount: c.claim_amount ?? null,
-            summary: summary ?? null,
-            confidence_overall: confidence?.overall ?? null,
-            confidence_missing_fields: confidence?.missing_fields ?? [],
-            documents_detected: documents_detected ?? [],
-            important_dates: important_dates ?? [],
-            legal_claim: legal_claim ?? {},
-            processing_phase: 'complete',
-          })
-          .eq('id', caseFileId)
-        if (retryErr) throw new Error(`case_files enrichment retry failed: ${retryErr.message}`)
-      } else {
-        throw new Error(`case_files enrichment update failed: ${caseUpdateError.message}`)
-      }
-    }
+    await this.assignCaseNumber(caseFileId, c.case_number, {
+      caption: c.title ?? c.case_number,
+      title: c.title ?? null,
+      court: c.court ?? null,
+      jurisdiction: c.jurisdiction ?? null,
+      clerk_office: c.department ?? null,
+      department: c.department ?? null,
+      process_type: c.process_type ?? null,
+      matter: c.legal_matter ?? null,
+      legal_matter: c.legal_matter ?? null,
+      filing_date: c.filing_date ?? null,
+      claim_amount: c.claim_amount ?? null,
+      summary: summary ?? null,
+      confidence_overall: confidence?.overall ?? null,
+      confidence_missing_fields: confidence?.missing_fields ?? [],
+      documents_detected: documents_detected ?? [],
+      important_dates: important_dates ?? [],
+      legal_claim: legal_claim ?? {},
+      processing_phase: 'complete',
+    })
 
     // Satellite upserts — delete existing rows first to avoid duplicates on re-run.
     await this.db.from('case_file_plaintiff').delete().eq('case_file_id', caseFileId)
@@ -325,5 +286,45 @@ export class PipelineService implements OnApplicationBootstrap {
       const { error } = await this.db.from('case_file_parties').insert(partyRows)
       if (error) this.logger.error(`parties insert failed: ${error.message}`)
     }
+  }
+
+  /**
+   * Write the extracted fields, claiming the extracted case_number when it is
+   * free. Active cases are unique on case_number, so a re-upload of the same
+   * expediente collides with the original. Rather than leave the placeholder
+   * BORRADOR number in place, fall back to "<number> (n)" — the convention a
+   * file manager uses for duplicate filenames.
+   *
+   * Candidates are attempted in order: a 23505 means the number was taken
+   * (possibly by a job racing this one), so the next suffix is tried.
+   */
+  private async assignCaseNumber(
+    caseFileId: string,
+    extractedNumber: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fields: Record<string, any>,
+  ): Promise<void> {
+    const MAX_SUFFIX = 50
+
+    for (let n = 0; n <= MAX_SUFFIX; n++) {
+      const candidate = n === 0 ? extractedNumber : `${extractedNumber} (${n})`
+
+      const { error } = await this.db
+        .from('case_files')
+        .update({ ...fields, case_number: candidate })
+        .eq('id', caseFileId)
+
+      if (!error) {
+        if (n > 0) {
+          this.logger.warn(`case_number "${extractedNumber}" already taken — assigned "${candidate}"`)
+        }
+        return
+      }
+      if (error.code !== '23505') {
+        throw new Error(`case_files enrichment update failed: ${error.message}`)
+      }
+    }
+
+    throw new Error(`No free case_number for "${extractedNumber}" after ${MAX_SUFFIX} suffixes`)
   }
 }
