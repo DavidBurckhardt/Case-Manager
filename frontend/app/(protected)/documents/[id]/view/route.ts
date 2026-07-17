@@ -23,6 +23,13 @@ export async function GET(
     if (err instanceof ApiError) {
       return NextResponse.json({ error: err.message }, { status: err.status })
     }
-    return NextResponse.json({ error: 'Error al abrir el documento.' }, { status: 500 })
+    // Surface the real cause: this catch-all previously hid the underlying
+    // error (signed-URL / service-role failures), making prod debugging blind.
+    const detail = err instanceof Error ? err.message : String(err)
+    console.error(`[documents/${id}/view] failed:`, err)
+    return NextResponse.json(
+      { error: 'Error al abrir el documento.', detail },
+      { status: 500 },
+    )
   }
 }
