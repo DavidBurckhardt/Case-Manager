@@ -62,14 +62,13 @@ const STATUS_BADGE: Record<
   { label: string; icon: typeof Loader2; className: string }
 > = {
   UPLOADED:             { label: 'En cola',     icon: Clock,         className: 'bg-muted text-muted-foreground' },
-  OCR_IN_PROGRESS:      { label: 'Procesando',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
   METADATA_EXTRACTION:  { label: 'Procesando',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
   CASE_GENERATION:      { label: 'Generando',   icon: Loader2,       className: 'bg-amber-500/15 text-amber-700' },
   COMPLETED:            { label: 'Completado',  icon: CheckCircle2,  className: 'bg-green-500/15 text-green-700' },
   ERROR:                { label: 'Error',       icon: XCircle,       className: 'bg-destructive/15 text-destructive' },
 }
 
-const ACTIVE_STATUSES = new Set<DocumentProcessingStatus>(['OCR_IN_PROGRESS', 'METADATA_EXTRACTION', 'CASE_GENERATION'])
+const ACTIVE_STATUSES = new Set<DocumentProcessingStatus>(['METADATA_EXTRACTION', 'CASE_GENERATION'])
 
 export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
   const [cancelling, setCancelling] = useState(false)
@@ -86,12 +85,12 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
 
   const phase2Total = doc.case_file?.phase2_docs_total ?? 0
   const phase2Done  = doc.case_file?.phase2_docs_completed ?? 0
-  const allOcrDone  = phase2Total > 0 && phase2Done >= phase2Total
+  const allDocsAnalyzed = phase2Total > 0 && phase2Done >= phase2Total
   const analysisProgress = isAnalyzing && phase2Total > 0
     ? `${phase2Done}/${phase2Total}`
     : null
   const badge = isAnalyzing
-    ? (allOcrDone
+    ? (allDocsAnalyzed
         ? { label: 'Generando…', icon: Loader2, className: 'bg-amber-500/15 text-amber-700' }
         : { label: analysisProgress ? `Analizando ${analysisProgress}` : 'Analizando', icon: Loader2, className: 'bg-blue-500/15 text-blue-700' })
     : STATUS_BADGE[doc.processing_status]

@@ -19,7 +19,7 @@ export class DocumentsController {
 
   /**
    * POST /documents/upload — multipart/form-data, field "files" (one or many).
-   * Uploads to storage, creates the batch case, and enqueues OCR jobs.
+   * Uploads to storage, creates the batch case, and enqueues the extract job.
    */
   @Post('upload')
   @UseInterceptors(FilesInterceptor('files', 20, { limits: { fileSize: maxBytes() } }))

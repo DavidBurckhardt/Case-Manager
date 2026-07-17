@@ -63,7 +63,7 @@ export default async function DashboardPage() {
           <Upload className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <h3 id="intake-heading" className="font-semibold">Ingreso de Documentos</h3>
           <span className="text-xs text-muted-foreground">
-            — El OCR y la generación de expedientes ocurren automáticamente
+            — El análisis y la generación de expedientes ocurren automáticamente
           </span>
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">

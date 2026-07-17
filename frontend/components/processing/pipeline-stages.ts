@@ -7,8 +7,8 @@ export interface PipelineStage {
 }
 
 // Four visual stages reflecting the two-phase processing strategy:
-//   Phase 1 (pdf-parse + regex) → Preview
-//   Phase 2 (OCR + LLM, background) → Analyzing → Complete
+//   Phase 1 (placeholder case) → Preview
+//   Phase 2 (LLM extraction, background) → Analyzing → Complete
 export const PIPELINE_STAGES: PipelineStage[] = [
   { key: 'upload',    label: 'Carga' },
   { key: 'preview',   label: 'Vista Previa' },
@@ -33,7 +33,6 @@ export function stageIndex(
   }
   switch (status) {
     case 'UPLOADED':            return 0
-    case 'OCR_IN_PROGRESS':     return 1  // Phase 1 in progress → Preview stage
     case 'METADATA_EXTRACTION': return 1
     case 'CASE_GENERATION':     return 1
     case 'COMPLETED':

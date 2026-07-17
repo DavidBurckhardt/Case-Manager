@@ -131,8 +131,8 @@ export default async function CaseDetailPage({ params }: Props) {
             </p>
             <p className="mt-0.5 text-xs">
               {processing_phase === 'analyzing'
-                ? 'El OCR y la extracción por IA están en curso en segundo plano. Actualizá esta página en unos minutos para ver los datos completos del expediente.'
-                : 'Este expediente fue creado a partir de un escaneo rápido de texto. Algunos campos pueden estar incompletos o ser imprecisos. Volvé a subir el documento con el servicio OCR activo para un análisis completo.'
+                ? 'La extracción por IA está en curso en segundo plano. Actualizá esta página en unos minutos para ver los datos completos del expediente.'
+                : 'Este expediente quedó con datos parciales. Algunos campos pueden estar incompletos o ser imprecisos. Volvé a subir el documento para un análisis completo.'
               }
             </p>
           </div>

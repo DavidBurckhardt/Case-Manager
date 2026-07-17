@@ -36,7 +36,6 @@ const STATUS_CONFIG: Record<
   { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }
 > = {
   UPLOADED:            { label: 'En cola',    variant: 'secondary' },
-  OCR_IN_PROGRESS:     { label: 'OCR',        variant: 'default' },
   METADATA_EXTRACTION: { label: 'Extrayendo', variant: 'default' },
   CASE_GENERATION:     { label: 'Generando',  variant: 'default' },
   COMPLETED:           { label: 'Completado', variant: 'default' },

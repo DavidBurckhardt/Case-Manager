@@ -62,7 +62,7 @@ export default async function ProcessingPage() {
         <div>
           <h2 className="text-xl font-semibold">Procesamiento de Documentos</h2>
           <p className="text-sm text-muted-foreground">
-            Seguimiento en tiempo real del pipeline de OCR, extracción de metadatos y generación de expedientes.
+            Seguimiento en tiempo real del pipeline de extracción por IA y generación de expedientes.
           </p>
         </div>
 

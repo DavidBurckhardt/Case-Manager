@@ -2,7 +2,6 @@ export type DocumentOrigin = 'MANUAL' | 'EMAIL' | 'PJN' | 'SNEJ' | 'SYSTEM' | 'A
 
 export type DocumentProcessingStatus =
   | 'UPLOADED'
-  | 'OCR_IN_PROGRESS'
   | 'METADATA_EXTRACTION'
   | 'CASE_GENERATION'
   | 'COMPLETED'
