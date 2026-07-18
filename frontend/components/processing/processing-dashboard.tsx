@@ -14,8 +14,21 @@ interface ProcessingDashboardProps {
   initialDocs?: ProcessingDocument[]
 }
 
-const FAST_POLL_MS = 3_000
-const SLOW_POLL_MS = 15_000
+const FAST_POLL_MS = 2_000
+const SLOW_POLL_MS = 10_000
+const INITIAL_BURST_MS = 500
+const SESSION_KEY = 'pending-processing-docs'
+
+function popOptimisticDocs(): ProcessingDocument[] {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return []
+    sessionStorage.removeItem(SESSION_KEY)
+    const docs = JSON.parse(raw) as ProcessingDocument[]
+    // Inject as UPLOADED so they show up instantly before the first real poll
+    return docs.map(d => ({ ...d, processing_status: 'UPLOADED' as const }))
+  } catch { return [] }
+}
 
 // When case_file is null (join race or failure), treat COMPLETED as still analyzing.
 // Mirrors the effectivePhase logic in ProcessingRow.
@@ -30,7 +43,13 @@ function allTerminal(docs: ProcessingDocument[]) {
 }
 
 export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardProps) {
-  const [docs, setDocs] = useState<ProcessingDocument[]>(initialDocs)
+  const [docs, setDocs] = useState<ProcessingDocument[]>(() => {
+    const optimistic = popOptimisticDocs()
+    if (optimistic.length === 0) return initialDocs
+    // Merge: optimistic first, skip any IDs already in initialDocs
+    const initialIds = new Set(initialDocs.map(d => d.id))
+    return [...optimistic.filter(d => !initialIds.has(d.id)), ...initialDocs]
+  })
   const [loading, setLoading] = useState(initialDocs.length === 0)
   const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState<FilterTab>('active')
@@ -54,6 +73,13 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
       setLoading(false)
       setRefreshing(false)
     }
+  }, [])
+
+  // Immediate burst fetch on mount so fast pipelines (prod) aren't missed
+  useEffect(() => {
+    const t = setTimeout(() => fetchDocs(true), INITIAL_BURST_MS)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -210,17 +236,15 @@ export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardPro
             <colgroup>
               <col />
               <col className="w-20" />
-              <col className="w-28" />
-              <col className="w-72" />
-              <col className="w-40" />
+              <col className="w-36" />
+              <col className="w-44" />
             </colgroup>
             <thead>
               <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
                 <th className="px-4 py-3 font-medium">Documento</th>
                 <th className="px-4 py-3 font-medium">Tamaño</th>
                 <th className="px-4 py-3 font-medium">Subido</th>
-                <th className="px-4 py-3 font-medium">Progreso</th>
-                <th className="px-4 py-3 font-medium text-right">Estado</th>
+                <th className="px-4 py-3 font-medium text-center">Estado</th>
               </tr>
             </thead>
             <tbody>

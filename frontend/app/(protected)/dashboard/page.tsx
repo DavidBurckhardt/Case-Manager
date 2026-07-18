@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { FolderOpen, Clock, FileText, Bell, Upload } from 'lucide-react'
 import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
-import { DocumentUploader } from '@/components/documents'
+import { DocumentUploaderWithRedirect } from '@/components/documents/document-uploader-with-redirect'
 import { RecentActivity } from '@/components/home/recent-activity'
 
 export const metadata = { title: 'Inicio — Generador de Expedientes' }
@@ -67,7 +67,7 @@ export default async function DashboardPage() {
           </span>
         </div>
         <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <DocumentUploader uploadUrl={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/documents/upload`} />
+          <DocumentUploaderWithRedirect uploadUrl={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'}/documents/upload`} />
         </div>
       </section>
 

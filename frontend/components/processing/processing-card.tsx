@@ -4,12 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   FileText, FileImage, FileCode2, File,
-  CheckCircle2, XCircle, Loader2, Clock,
-  ExternalLink, X,
+  CheckCircle2, XCircle, Loader2, ExternalLink, X,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { ProcessingPipelineTrack } from './processing-pipeline-track'
 import type { DocumentProcessingStatus } from '@/types/document'
 import type { ProcessingPhase } from '@/types/case-file'
 
@@ -57,44 +55,34 @@ function formatDate(dateStr: string) {
   })
 }
 
-const STATUS_BADGE: Record<
-  DocumentProcessingStatus,
-  { label: string; icon: typeof Loader2; className: string }
-> = {
-  UPLOADED:             { label: 'En cola',     icon: Clock,         className: 'bg-muted text-muted-foreground' },
-  METADATA_EXTRACTION:  { label: 'Procesando',  icon: Loader2,       className: 'bg-blue-500/15 text-blue-700' },
-  CASE_GENERATION:      { label: 'Generando',   icon: Loader2,       className: 'bg-amber-500/15 text-amber-700' },
-  COMPLETED:            { label: 'Completado',  icon: CheckCircle2,  className: 'bg-green-500/15 text-green-700' },
-  ERROR:                { label: 'Error',       icon: XCircle,       className: 'bg-destructive/15 text-destructive' },
-}
+type BadgeConfig = { label: string; icon: typeof Loader2; spin: boolean; className: string }
 
-const ACTIVE_STATUSES = new Set<DocumentProcessingStatus>(['METADATA_EXTRACTION', 'CASE_GENERATION'])
+function resolveBadge(doc: ProcessingDocument): BadgeConfig {
+  if (doc.processing_status === 'ERROR') {
+    return { label: 'Error', icon: XCircle, spin: false, className: 'bg-red-500/15 text-red-600' }
+  }
+
+  // COMPLETED but case not yet attached = still processing on the backend
+  const effectivePhase = doc.case_file?.processing_phase ?? (doc.processing_status === 'COMPLETED' ? 'analyzing' : null)
+  const isFullyDone = doc.processing_status === 'COMPLETED' && effectivePhase !== 'analyzing'
+
+  if (isFullyDone) {
+    return { label: 'Completado', icon: CheckCircle2, spin: false, className: 'bg-green-500/15 text-green-700' }
+  }
+
+  return { label: 'Procesando', icon: Loader2, spin: true, className: 'bg-amber-500/15 text-amber-600' }
+}
 
 export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
   const [cancelling, setCancelling] = useState(false)
   const Icon = fileIcon(doc.file_extension)
-  // Treat null case_file as still-analyzing: the case hasn't been attached yet (Phase 1 race)
-  // or the join failed. Either way, don't show false all-green Complete.
-  const effectivePhase = doc.case_file?.processing_phase ?? (doc.processing_status === 'COMPLETED' ? 'analyzing' : null)
-  const isAnalyzing = doc.processing_status === 'COMPLETED' && effectivePhase === 'analyzing'
-  const isActive   = ACTIVE_STATUSES.has(doc.processing_status) || isAnalyzing
-  const isQueued   = doc.processing_status === 'UPLOADED'
-  const isError    = doc.processing_status === 'ERROR'
-  const isDone     = doc.processing_status === 'COMPLETED' && !isAnalyzing
-  const canCancel  = (ACTIVE_STATUSES.has(doc.processing_status) || isQueued) && !cancelling
-
-  const phase2Total = doc.case_file?.phase2_docs_total ?? 0
-  const phase2Done  = doc.case_file?.phase2_docs_completed ?? 0
-  const allDocsAnalyzed = phase2Total > 0 && phase2Done >= phase2Total
-  const analysisProgress = isAnalyzing && phase2Total > 0
-    ? `${phase2Done}/${phase2Total}`
-    : null
-  const badge = isAnalyzing
-    ? (allDocsAnalyzed
-        ? { label: 'Generando…', icon: Loader2, className: 'bg-amber-500/15 text-amber-700' }
-        : { label: analysisProgress ? `Analizando ${analysisProgress}` : 'Analizando', icon: Loader2, className: 'bg-blue-500/15 text-blue-700' })
-    : STATUS_BADGE[doc.processing_status]
+  const badge = resolveBadge(doc)
   const BadgeIcon = badge.icon
+
+  const isProcessing = badge.label === 'Procesando'
+  const isError      = badge.label === 'Error'
+  const isDone       = badge.label === 'Completado'
+  const canCancel    = isError && !cancelling
 
   async function handleCancel() {
     if (!canCancel) return
@@ -111,9 +99,9 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
     <tr
       className={cn(
         'border-b last:border-0 transition-colors',
-        isError && 'bg-destructive/5 hover:bg-destructive/8',
-        isDone  && 'hover:bg-muted/30',
-        !isError && !isDone && 'hover:bg-muted/20',
+        isError      && 'bg-destructive/5 hover:bg-destructive/8',
+        isDone       && 'hover:bg-muted/30',
+        isProcessing && 'hover:bg-muted/20',
       )}
     >
       {/* Name */}
@@ -157,26 +145,14 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
         {formatDate(doc.uploaded_at)}
       </td>
 
-      {/* Pipeline track */}
-      <td className="px-4 py-3">
-        <ProcessingPipelineTrack
-          status={doc.processing_status}
-          errorStage={doc.processing_error_stage}
-          processingPhase={effectivePhase}
-          phase2DocsTotal={doc.case_file?.phase2_docs_total}
-          phase2DocsCompleted={doc.case_file?.phase2_docs_completed}
-          className="w-64"
-        />
-      </td>
-
       {/* Status badge + cancel */}
       <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center justify-center gap-2">
           <Badge
             variant="outline"
-            className={cn('inline-flex items-center gap-1 border-0 px-2 py-0.5 text-[11px] font-medium', badge.className)}
+            className={cn('inline-flex items-center gap-1.5 border-0 px-2.5 py-1 text-xs font-medium', badge.className)}
           >
-            <BadgeIcon className={cn('h-3 w-3', isActive && 'animate-spin')} aria-hidden="true" />
+            <BadgeIcon className={cn('h-3.5 w-3.5', badge.spin && 'animate-spin')} aria-hidden="true" />
             {badge.label}
           </Badge>
           {canCancel && (
@@ -197,5 +173,4 @@ export function ProcessingRow({ doc, onCancel }: ProcessingRowProps) {
   )
 }
 
-// Keep old name exported for any legacy import
 export { ProcessingRow as ProcessingCard }
