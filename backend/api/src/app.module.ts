@@ -8,6 +8,7 @@ import { PipelineModule } from './pipeline/pipeline.module'
 import { DocumentsModule } from './documents/documents.module'
 import { ProcessingModule } from './processing/processing.module'
 import { AuthModule } from './auth/auth.module'
+import { DeadlinesModule } from './deadlines/deadlines.module'
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from './auth/auth.module'
     DocumentsModule,
     ProcessingModule,
     AuthModule,
+    DeadlinesModule,
   ],
   controllers: [HealthController],
 })

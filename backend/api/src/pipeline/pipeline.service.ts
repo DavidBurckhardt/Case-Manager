@@ -2,6 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { SupabaseService } from '../supabase/supabase.service'
 import { NatsService } from '../messaging/nats.service'
 import { ExtractionService, ExtractionFile } from '../llm/extraction.service'
+import { DeadlinesService } from '../deadlines/deadlines.service'
 import type { ExtractedCase } from '../llm/extraction.schema'
 import type { ExtractRequest } from '../messaging/contracts'
 
@@ -24,6 +25,7 @@ export class PipelineService implements OnApplicationBootstrap {
     private readonly supabase: SupabaseService,
     private readonly nats: NatsService,
     private readonly extraction: ExtractionService,
+    private readonly deadlines: DeadlinesService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,6 +142,12 @@ export class PipelineService implements OnApplicationBootstrap {
       this.logger.error(`Case enrichment failed for case ${caseId}: ${(err as Error).message}`)
       await this.db.from('case_files').update({ processing_phase: 'preview' }).eq('id', caseId)
       return
+    }
+    try {
+      await this.deadlines.generateForCase(caseId, metadata.procedural_acts ?? [])
+    } catch (err) {
+      this.logger.error(`Deadline generation failed for case ${caseId}: ${(err as Error).message}`)
+      // no re-throw — deadline failure must not mark case as preview
     }
     this.logger.log(`✓ Case ${caseId} enriched — processing_phase=complete`)
   }

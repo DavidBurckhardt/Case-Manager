@@ -7,6 +7,7 @@ import {
 import { getCaseFileById } from '@/services/case-file.service'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { CaseTabs } from '@/components/cases/case-tabs'
 
 export const metadata = { title: 'Detalle de Expediente — Generador de Expedientes' }
 
@@ -93,25 +94,8 @@ export default async function CaseDetailPage({ params }: Props) {
   const safeDocs      = Array.isArray(documents_detected) ? documents_detected as string[] : []
   const safeMissing   = Array.isArray(confidence_missing_fields) ? confidence_missing_fields as string[] : []
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-16">
-
-      {/* ── Back + header ── */}
-      <div className="space-y-3">
-        <Link href="/cases" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver a Expedientes
-        </Link>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold leading-snug">{displayTitle}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Expediente&nbsp;<span className="font-mono font-semibold">{case_number}</span>
-              {court && <> · {court}</>}
-              {jurisdiction && <> · {jurisdiction}</>}
-            </p>
-          </div>
-        </div>
-      </div>
+  const expedienteContent = (
+    <div className="space-y-6">
 
       {/* ── Processing phase banner ── */}
       {processing_phase !== 'complete' && (
@@ -337,6 +321,27 @@ export default async function CaseDetailPage({ params }: Props) {
           </div>
         </Section>
       )}
+    </div>
+  )
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 pb-16">
+      <div className="space-y-3">
+        <Link href="/cases" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> Volver a Expedientes
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold leading-snug">{displayTitle}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Expediente&nbsp;<span className="font-mono font-semibold">{case_number}</span>
+              {court && <> · {court}</>}
+              {jurisdiction && <> · {jurisdiction}</>}
+            </p>
+          </div>
+        </div>
+      </div>
+      <CaseTabs caseId={id} expedienteContent={expedienteContent} />
     </div>
   )
 }
