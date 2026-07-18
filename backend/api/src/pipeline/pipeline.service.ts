@@ -148,7 +148,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const {
       case: c, plaintiff, defendants, employer, insurance_company, accident, medical,
       administrative_proceedings, legal_claim, lawyers, important_dates,
-      documents_detected, summary, confidence,
+      procedural_acts, documents_detected, summary, confidence,
     } = metadata
 
     await this.assignCaseNumber(caseFileId, c.case_number, {
@@ -168,6 +168,7 @@ export class PipelineService implements OnApplicationBootstrap {
       confidence_missing_fields: confidence?.missing_fields ?? [],
       documents_detected: documents_detected ?? [],
       important_dates: important_dates ?? [],
+      procedural_acts: procedural_acts ?? [],
       legal_claim: legal_claim ?? {},
       processing_phase: 'complete',
     })

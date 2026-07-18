@@ -5,6 +5,34 @@ import { z } from 'zod'
 const nullStr = z.string().nullable().optional().catch(null)
 const nullDate = z.string().nullable().optional().catch(null) // YYYY-MM-DD
 
+// ── Procedural acts (deadline engine input) ──────────────────────────────────
+// Each act found in the documents that may trigger a procedural deadline.
+// The act_type maps 1:1 to the CPCCN deadline table used by the deadline engine.
+export const PROCEDURAL_ACT_TYPES = [
+  'TRASLADO_DEMANDA',            // → Contestar demanda (15 días hábiles)
+  'TRASLADO_RECONVENCION',      // → Contestar reconvención (15)
+  'APERTURA_PRUEBA',            // → Ofrecer prueba (10)
+  'SENTENCIA_PRIMERA_INSTANCIA',// → Apelar (5)
+  'EXPRESION_AGRAVIOS',         // → Contestar agravios (6)
+  'INTIMACION_PAGO_ART_504',    // → Oponer excepciones (5)
+  'OTRO',                       // acto sin plazo asociado en la tabla base
+] as const
+
+export type ProceduralActType = (typeof PROCEDURAL_ACT_TYPES)[number]
+
+const proceduralActSchema = z.object({
+  // Physical document type as it appears in the file
+  document_type: nullStr, // CEDULA | SENTENCIA | PROVIDENCIA | OFICIO | ESCRITO | DEMANDA | OTRO
+  // Deadline-triggering event; null when the document triggers no known deadline
+  act_type: z.enum(PROCEDURAL_ACT_TYPES).nullable().optional().catch(null),
+  // Date printed on the document
+  document_date: nullDate,
+  // Notification/service date (e.g. cédula). Deadlines run from HERE, not document_date.
+  notification_date: nullDate,
+  // Short factual description of the act, in Spanish
+  description: nullStr,
+})
+
 export const extractedCaseSchema = z.object({
   case: z.object({
     title: nullStr,
@@ -104,6 +132,9 @@ export const extractedCaseSchema = z.object({
   important_dates: z
     .array(z.object({ date: z.string().nullable().optional(), event: z.string() }))
     .catch([]),
+
+  // Procedural acts that may trigger deadlines — consumed by the deadline engine
+  procedural_acts: z.array(proceduralActSchema).catch([]),
 
   documents_detected: z.array(z.string()).catch([]),
 
@@ -207,10 +238,53 @@ OUTPUT JSON SHAPE
   "legal_claim": { "requested_compensation": null, "legal_arguments": [], "constitutional_challenges": [], "requested_medical_benefits": [], "requested_interest_or_indexation": [] },
   "lawyers": [],
   "important_dates": [],
+  "procedural_acts": [],
   "documents_detected": [],
   "summary": null,
   "confidence": { "overall": null, "missing_fields": [] }
 }
+
+--------------------------------------------------
+PROCEDURAL ACTS (procedural_acts) — CRITICAL FOR DEADLINES
+--------------------------------------------------
+
+This is the MOST important extraction for the system. The application computes
+procedural deadlines ("plazos") automatically from these acts, so a missed or
+mis-dated act means a missed legal deadline.
+
+For EACH distinct procedural act found across the documents, add one object to
+"procedural_acts" with:
+
+- "document_type": the physical document, one of:
+  "CEDULA" | "SENTENCIA" | "PROVIDENCIA" | "OFICIO" | "ESCRITO" | "DEMANDA" | "OTRO"
+
+- "act_type": the deadline-triggering event. Use EXACTLY one of these strings,
+  or null if the act triggers no known deadline:
+
+  "TRASLADO_DEMANDA"            → traslado de la demanda (contestar, 15 días hábiles)
+  "TRASLADO_RECONVENCION"      → traslado de reconvención (contestar, 15)
+  "APERTURA_PRUEBA"            → auto de apertura a prueba (ofrecer prueba, 10)
+  "SENTENCIA_PRIMERA_INSTANCIA"→ sentencia de 1ª instancia (apelar, 5)
+  "EXPRESION_AGRAVIOS"         → traslado de expresión de agravios (contestar, 6)
+  "INTIMACION_PAGO_ART_504"    → intimación de pago art. 504 CPCCN (oponer excepciones, 5)
+  "OTRO"                       → acto procesal sin plazo en la tabla anterior
+
+- "document_date": the date printed on the document (YYYY-MM-DD) or null.
+
+- "notification_date": the date the party was NOTIFIED / served (fecha de
+  notificación de la cédula, fecha de recepción). THIS is when deadlines start
+  counting — never confuse it with document_date. If the document is a cédula,
+  this is usually the diligenciamiento/notification date. null if not present.
+
+- "description": one short factual sentence in Spanish describing the act.
+
+Rules:
+- Only include real procedural acts. Do NOT invent acts.
+- If the same act appears in duplicated pages, include it ONCE.
+- Prefer notification_date from the cédula over any date in the body.
+- If you cannot classify the act_type with confidence, use null (not a guess).
+
+--------------------------------------------------
 
 SUMMARY: produce a concise factual summary (max 250 words) covering who is suing, against whom, why, accident description, medical diagnosis, procedural status, compensation sought. No legal opinions. In Spanish.
 
