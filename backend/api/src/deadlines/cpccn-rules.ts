@@ -13,6 +13,7 @@ export const CPCCN_RULES: Partial<Record<ProceduralActType, DeadlineRule>> = {
   SENTENCIA_PRIMERA_INSTANCIA: { description: 'Apelar sentencia',       diasHabiles:  5, tipo: 'FATAL' },
   EXPRESION_AGRAVIOS:          { description: 'Contestar agravios',     diasHabiles:  6, tipo: 'FATAL' },
   INTIMACION_PAGO_ART_504:     { description: 'Oponer excepciones',     diasHabiles:  5, tipo: 'FATAL' },
+  CADUCIDAD_INSTANCIA:         { description: 'Impulsar proceso (caducidad)', diasHabiles: 90, tipo: 'FATAL' },
   // OTRO no tiene regla → no genera plazo
 }
 

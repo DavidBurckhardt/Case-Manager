@@ -15,6 +15,7 @@ export const PROCEDURAL_ACT_TYPES = [
   'SENTENCIA_PRIMERA_INSTANCIA',// → Apelar (5)
   'EXPRESION_AGRAVIOS',         // → Contestar agravios (6)
   'INTIMACION_PAGO_ART_504',    // → Oponer excepciones (5)
+  'CADUCIDAD_INSTANCIA',        // → Impulsar proceso (90 días hábiles)
   'OTRO',                       // acto sin plazo asociado en la tabla base
 ] as const
 
@@ -267,6 +268,10 @@ For EACH distinct procedural act found across the documents, add one object to
   "SENTENCIA_PRIMERA_INSTANCIA"→ sentencia de 1ª instancia (apelar, 5)
   "EXPRESION_AGRAVIOS"         → traslado de expresión de agravios (contestar, 6)
   "INTIMACION_PAGO_ART_504"    → intimación de pago art. 504 CPCCN (oponer excepciones, 5)
+  "CADUCIDAD_INSTANCIA"        → ausencia de impulso procesal por 90 días hábiles (caducidad de instancia);
+                                  usar cuando el documento mencione explícitamente una intimación por
+                                  caducidad, o cuando sea la última actuación conocida y hayan transcurrido
+                                  o estén próximos los 90 días sin impulso procesal
   "OTRO"                       → acto procesal sin plazo en la tabla anterior
 
 - "document_date": the date printed on the document (YYYY-MM-DD) or null.
