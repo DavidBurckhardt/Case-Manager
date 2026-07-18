@@ -43,14 +43,17 @@ function allTerminal(docs: ProcessingDocument[]) {
 }
 
 export function ProcessingDashboard({ initialDocs = [] }: ProcessingDashboardProps) {
-  const [docs, setDocs] = useState<ProcessingDocument[]>(() => {
+  // Compute merged initial state once so both docs and loading agree on what we have
+  const [{ docs: _initDocs, loading: _initLoading }] = useState(() => {
     const optimistic = popOptimisticDocs()
-    if (optimistic.length === 0) return initialDocs
-    // Merge: optimistic first, skip any IDs already in initialDocs
     const initialIds = new Set(initialDocs.map(d => d.id))
-    return [...optimistic.filter(d => !initialIds.has(d.id)), ...initialDocs]
+    const merged = optimistic.length > 0
+      ? [...optimistic.filter(d => !initialIds.has(d.id)), ...initialDocs]
+      : initialDocs
+    return { docs: merged, loading: merged.length === 0 }
   })
-  const [loading, setLoading] = useState(initialDocs.length === 0)
+  const [docs, setDocs] = useState<ProcessingDocument[]>(_initDocs)
+  const [loading, setLoading] = useState(_initLoading)
   const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState<FilterTab>('active')
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
