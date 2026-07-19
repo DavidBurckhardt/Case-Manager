@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Scale } from 'lucide-react'
-import { NAV_GROUPS, type NavItem } from '@/constants/navigation'
+import { NAV_GROUPS, type NavItem, type Role } from '@/constants/navigation'
 import { cn } from '@/lib/utils'
 
 function NavLink({ item }: { item: NavItem }) {
@@ -43,7 +43,7 @@ export function Sidebar({ userRole }: SidebarProps) {
   const visibleGroups = NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter(
-      (item) => !item.requiredRole || item.requiredRole === userRole
+      (item) => !item.roles || (userRole != null && item.roles.includes(userRole as Role))
     ),
   })).filter((g) => g.items.length > 0)
 

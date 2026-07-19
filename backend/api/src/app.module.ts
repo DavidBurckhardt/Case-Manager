@@ -10,6 +10,7 @@ import { DocumentsModule } from './documents/documents.module'
 import { ProcessingModule } from './processing/processing.module'
 import { AuthModule } from './auth/auth.module'
 import { DeadlinesModule } from './deadlines/deadlines.module'
+import { UsersModule } from './users/users.module'
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { DeadlinesModule } from './deadlines/deadlines.module'
     ProcessingModule,
     AuthModule,
     DeadlinesModule,
+    UsersModule,
   ],
   controllers: [HealthController],
 })

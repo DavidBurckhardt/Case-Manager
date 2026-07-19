@@ -6,15 +6,19 @@ import {
   Settings,
   LayoutDashboard,
   Cpu,
+  Users,
+  ShieldCheck,
   type LucideIcon,
 } from 'lucide-react'
+
+export type Role = 'admin' | 'socio' | 'asociado'
 
 export interface NavItem {
   label: string
   href: string
   icon: LucideIcon
-  /** Minimum role required. undefined = any authenticated user. */
-  requiredRole?: 'admin'
+  /** Roles allowed to see this item. undefined = any authenticated user. */
+  roles?: readonly Role[]
   badge?: string
 }
 
@@ -42,7 +46,9 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Sistema',
     items: [
-      { label: 'Administración', href: '/admin', icon: Settings, requiredRole: 'admin' },
+      { label: 'Seguridad',      href: '/settings/security', icon: ShieldCheck },
+      { label: 'Usuarios',       href: '/settings/users', icon: Users,    roles: ['admin', 'socio'] },
+      { label: 'Administración', href: '/admin',          icon: Settings, roles: ['admin'] },
     ],
   },
 ]

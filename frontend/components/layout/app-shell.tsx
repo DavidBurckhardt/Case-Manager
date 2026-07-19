@@ -8,9 +8,10 @@ interface AppShellProps {
   children: React.ReactNode
   userEmail?: string
   userRole?: string
+  mfaEnabled?: boolean
 }
 
-export function AppShell({ children, userEmail, userRole }: AppShellProps) {
+export function AppShell({ children, userEmail, userRole, mfaEnabled }: AppShellProps) {
   const title = usePageTitle()
 
   return (
@@ -20,7 +21,7 @@ export function AppShell({ children, userEmail, userRole }: AppShellProps) {
 
       {/* Right column: header + scrollable content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header title={title} userEmail={userEmail} />
+        <Header title={title} userEmail={userEmail} userRole={userRole} mfaEnabled={mfaEnabled} />
 
         <main
           id="main-content"
