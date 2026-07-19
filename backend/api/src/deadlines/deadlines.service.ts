@@ -4,15 +4,18 @@ import { SupabaseService } from '../supabase/supabase.service'
 import { extractedCaseSchema } from '../llm/extraction.schema'
 import { CPCCN_RULES } from './cpccn-rules'
 import { addBusinessDays } from './business-days'
+import { HolidaysService } from './holidays.service'
 
 type ProceduralAct = z.infer<typeof extractedCaseSchema>['procedural_acts'][number]
 
 @Injectable()
 export class DeadlinesService {
   private readonly logger = new Logger(DeadlinesService.name)
-  private readonly holidayCache = new Map<number, Set<string>>()
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly holidays: HolidaysService,
+  ) {}
 
   private get db(): any {
     return this.supabase.admin
@@ -77,7 +80,7 @@ export class DeadlinesService {
           const fechaVencimiento = await addBusinessDays(
             act.notification_date!,
             rule.diasHabiles,
-            this.getHolidaysForYear.bind(this),
+            this.holidays.forYear,
           )
           return {
             case_file_id:      caseId,
@@ -106,26 +109,5 @@ export class DeadlinesService {
     } catch (err: any) {
       this.logger.error(`[${caseId}] generateForCase threw unexpectedly: ${err?.message ?? err}`)
     }
-  }
-
-  private async getHolidaysForYear(year: number): Promise<Set<string>> {
-    if (this.holidayCache.has(year)) {
-      return this.holidayCache.get(year)!
-    }
-
-    const { data, error } = await this.db
-      .from('judicial_holidays')
-      .select('date')
-      .filter('date', 'gte', `${year}-01-01`)
-      .filter('date', 'lte', `${year}-12-31`)
-
-    if (error) {
-      this.logger.error(`Failed to load holidays for year ${year}: ${error.message}`)
-      return new Set()
-    }
-
-    const set = new Set<string>((data as { date: string }[]).map((r) => r.date))
-    this.holidayCache.set(year, set)
-    return set
   }
 }

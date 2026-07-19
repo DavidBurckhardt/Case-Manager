@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
 import { HealthController } from './health/health.controller'
 import { SupabaseModule } from './supabase/supabase.module'
 import { MessagingModule } from './messaging/messaging.module'
@@ -13,6 +14,7 @@ import { DeadlinesModule } from './deadlines/deadlines.module'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     SupabaseModule,
     MessagingModule,
     LlmModule,

@@ -25,6 +25,17 @@ function fmtDate(s: string) {
   })
 }
 
+function calendarDaysUntil(fechaVencimiento: string): number {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(fechaVencimiento + 'T00:00:00')
+  return Math.ceil((due.getTime() - today.getTime()) / 86_400_000)
+}
+
+// T-10 del PRD son 10 días hábiles ≈ 14 corridos. Aproximación deliberada:
+// el indicador es visual y no justifica pedirle el cálculo exacto al backend.
+const T10_CALENDAR_DAYS = 14
+
 function urgency(deadline: Deadline): 'vencido' | 'urgente' | 'normal' {
   if (deadline.estado === 'VENCIDO') return 'vencido'
   if (deadline.estado === 'CUMPLIDO') return 'normal'
@@ -106,8 +117,22 @@ export function DeadlinesTab({ caseId }: { caseId: string }) {
     )
   }
 
+  const hasUpcoming = deadlines.some((d) => {
+    if (d.estado !== 'PENDIENTE') return false
+    const days = calendarDaysUntil(d.fecha_vencimiento)
+    return days > 0 && days <= T10_CALENDAR_DAYS
+  })
+
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
+    <div className="space-y-4">
+      {hasUpcoming && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p className="text-sm font-medium">Hay plazos próximos a vencer en este expediente.</p>
+        </div>
+      )}
+
+      <div className="rounded-xl border bg-card overflow-hidden">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40">
@@ -161,6 +186,7 @@ export function DeadlinesTab({ caseId }: { caseId: string }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   )
 }

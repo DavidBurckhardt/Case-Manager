@@ -16,6 +16,32 @@ export interface DeadlineRow {
   title: string | null
 }
 
+function todayLocal(): string {
+  const now = new Date()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${m}-${d}`
+}
+
+/**
+ * Plazos pendientes cuyo vencimiento ya llegó o pasó (T-0).
+ * Devuelve 0 ante error: el banner es informativo y no debe romper la ficha.
+ */
+export async function countOverdueDeadlines(caseFileId: string): Promise<number> {
+  const supabase = await createClient()
+  const db = supabase as any
+
+  const { count, error } = await db
+    .from('case_deadlines')
+    .select('id', { count: 'exact', head: true })
+    .eq('case_file_id', caseFileId)
+    .eq('estado', 'PENDIENTE')
+    .lte('fecha_vencimiento', todayLocal())
+
+  if (error) return 0
+  return count ?? 0
+}
+
 export async function listUpcomingDeadlines(opts: {
   dias?: number
   estado?: string

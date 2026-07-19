@@ -8,6 +8,7 @@ import { getCaseFileById } from '@/services/case-file.service'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CaseTabs } from '@/components/cases/case-tabs'
+import { countOverdueDeadlines } from '@/services/deadlines.service'
 
 export const metadata = { title: 'Detalle de Expediente — Generador de Expedientes' }
 
@@ -76,6 +77,8 @@ export default async function CaseDetailPage({ params }: Props) {
   } catch {
     notFound()
   }
+
+  const overdueCount = await countOverdueDeadlines(id)
 
   const {
     case_number, title, caption, court, jurisdiction, department,
@@ -341,6 +344,21 @@ export default async function CaseDetailPage({ params }: Props) {
           </div>
         </div>
       </div>
+      {overdueCount > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border-2 border-destructive/40 bg-destructive/10 px-5 py-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-semibold text-destructive">
+              Este expediente tiene {overdueCount} plazo{overdueCount !== 1 ? 's' : ''} vencido
+              {overdueCount !== 1 ? 's' : ''} sin cumplir.
+            </p>
+            <p className="mt-0.5 text-xs text-destructive/80">
+              Revisá la pestaña de Plazos para regularizar la situación.
+            </p>
+          </div>
+        </div>
+      )}
+
       <CaseTabs caseId={id} expedienteContent={expedienteContent} />
     </div>
   )
