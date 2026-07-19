@@ -35,8 +35,6 @@ export interface CaseFileRow {
   filing_date: string | null
   claim_amount: number | null
   summary: string | null
-  confidence_overall: 'High' | 'Medium' | 'Low' | null
-  confidence_missing_fields: string[]
   documents_detected: string[]
   important_dates: Array<{ date: string | null; event: string }>
   legal_claim: Record<string, unknown>

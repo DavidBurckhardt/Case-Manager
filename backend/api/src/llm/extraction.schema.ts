@@ -141,12 +141,6 @@ export const extractedCaseSchema = z.object({
 
   summary: nullStr,
 
-  confidence: z
-    .object({
-      overall: z.enum(['High', 'Medium', 'Low']).nullable().optional(),
-      missing_fields: z.array(z.string()).catch([]),
-    })
-    .optional(),
 })
 
 export type ExtractedCase = z.infer<typeof extractedCaseSchema>
@@ -242,7 +236,6 @@ OUTPUT JSON SHAPE
   "procedural_acts": [],
   "documents_detected": [],
   "summary": null,
-  "confidence": { "overall": null, "missing_fields": [] }
 }
 
 --------------------------------------------------
@@ -292,8 +285,6 @@ Rules:
 --------------------------------------------------
 
 SUMMARY: produce a concise factual summary (max 250 words) covering who is suing, against whom, why, accident description, medical diagnosis, procedural status, compensation sought. No legal opinions. In Spanish.
-
-CONFIDENCE: estimate overall extraction quality (High/Medium/Low) and list fields that could not be extracted.
 
 --------------------------------------------------
 STRICT OUTPUT RULES

@@ -60,7 +60,6 @@ export class PipelineService implements OnApplicationBootstrap {
         title: null,
         filing_date: null,
         claim_amount: null,
-        confidence_missing_fields: [],
         documents_detected: [],
         important_dates: [],
         legal_claim: {},
@@ -156,7 +155,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const {
       case: c, plaintiff, defendants, employer, insurance_company, accident, medical,
       administrative_proceedings, legal_claim, lawyers, important_dates,
-      procedural_acts, documents_detected, summary, confidence,
+      procedural_acts, documents_detected, summary,
     } = metadata
 
     await this.assignCaseNumber(caseFileId, c.case_number, {
@@ -172,8 +171,6 @@ export class PipelineService implements OnApplicationBootstrap {
       filing_date: c.filing_date ?? null,
       claim_amount: c.claim_amount ?? null,
       summary: summary ?? null,
-      confidence_overall: confidence?.overall ?? null,
-      confidence_missing_fields: confidence?.missing_fields ?? [],
       documents_detected: documents_detected ?? [],
       important_dates: important_dates ?? [],
       procedural_acts: procedural_acts ?? [],

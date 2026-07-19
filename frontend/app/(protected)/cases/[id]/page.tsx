@@ -83,8 +83,7 @@ export default async function CaseDetailPage({ params }: Props) {
   const {
     case_number, title, caption, court, jurisdiction, department,
     process_type, legal_matter, matter, filing_date, claim_amount,
-    summary, confidence_overall, confidence_missing_fields,
-    documents_detected, important_dates, processing_phase,
+    summary, documents_detected, important_dates, processing_phase,
     current_status, parties, plaintiff, accident, medical,
     insurance, employer, admin_proceedings, created_at,
   } = caseFile
@@ -95,7 +94,6 @@ export default async function CaseDetailPage({ params }: Props) {
   const displayTitle  = title || caption || case_number
   const safeDates     = Array.isArray(important_dates) ? important_dates as Array<{ date: string | null; event: string }> : []
   const safeDocs      = Array.isArray(documents_detected) ? documents_detected as string[] : []
-  const safeMissing   = Array.isArray(confidence_missing_fields) ? confidence_missing_fields as string[] : []
 
   const expedienteContent = (
     <div className="space-y-6">
@@ -312,18 +310,6 @@ export default async function CaseDetailPage({ params }: Props) {
         </Section>
       )}
 
-      {/* ── Missing fields ── */}
-      {safeMissing.length > 0 && (
-        <Section icon={AlertCircle} title="Campos Faltantes">
-          <div className="flex flex-wrap gap-1.5">
-            {safeMissing.map((f, i) => (
-              <span key={i} className="inline-block rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                {f}
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
     </div>
   )
 

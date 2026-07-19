@@ -80,7 +80,7 @@ export class ExtractionService {
     }
 
     this.logger.log(
-      `Extraction ok — case_number="${result.data.case.case_number}" confidence=${result.data.confidence?.overall}`,
+      `Extraction ok — case_number="${result.data.case.case_number}"`,
     )
     return result.data
   }
