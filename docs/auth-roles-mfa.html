@@ -1,0 +1,914 @@
+<title>Roles y MFA — Documentación Técnica</title>
+<style>
+  :root {
+    --bg:           #0E1825;
+    --surface:      #152130;
+    --surface-2:    #1C2E42;
+    --border:       #253B55;
+    --border-soft:  #1D2F45;
+    --text:         #C2D4E8;
+    --text-muted:   #5C7A99;
+    --text-dim:     #3A5570;
+    --accent:       #B8962E;
+    --accent-soft:  #2A2010;
+    --blue:         #4B82C4;
+    --blue-soft:    #162038;
+    --green:        #3A9E6E;
+    --green-soft:   #0E2518;
+    --red:          #B84040;
+    --red-soft:     #2A1010;
+    --purple:       #7B5CB8;
+    --purple-soft:  #1E1530;
+    --code-bg:      #091218;
+    --code-text:    #7BBFE0;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:           #F2F5FA;
+      --surface:      #FFFFFF;
+      --surface-2:    #EBF0F8;
+      --border:       #D0DCEA;
+      --border-soft:  #E2EAF4;
+      --text:         #162035;
+      --text-muted:   #5A7090;
+      --text-dim:     #90A8C0;
+      --accent:       #9A7A1C;
+      --accent-soft:  #FDF6E3;
+      --blue:         #3068B0;
+      --blue-soft:    #EAF0FA;
+      --green:        #2A8A58;
+      --green-soft:   #E8F5EE;
+      --red:          #A03030;
+      --red-soft:     #FAEAEA;
+      --purple:       #6040A0;
+      --purple-soft:  #F0EAF8;
+      --code-bg:      #F0F4F8;
+      --code-text:    #2A6090;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:           #0E1825;
+    --surface:      #152130;
+    --surface-2:    #1C2E42;
+    --border:       #253B55;
+    --border-soft:  #1D2F45;
+    --text:         #C2D4E8;
+    --text-muted:   #5C7A99;
+    --text-dim:     #3A5570;
+    --accent:       #B8962E;
+    --accent-soft:  #2A2010;
+    --blue:         #4B82C4;
+    --blue-soft:    #162038;
+    --green:        #3A9E6E;
+    --green-soft:   #0E2518;
+    --red:          #B84040;
+    --red-soft:     #2A1010;
+    --purple:       #7B5CB8;
+    --purple-soft:  #1E1530;
+    --code-bg:      #091218;
+    --code-text:    #7BBFE0;
+  }
+  :root[data-theme="light"] {
+    --bg:           #F2F5FA;
+    --surface:      #FFFFFF;
+    --surface-2:    #EBF0F8;
+    --border:       #D0DCEA;
+    --border-soft:  #E2EAF4;
+    --text:         #162035;
+    --text-muted:   #5A7090;
+    --text-dim:     #90A8C0;
+    --accent:       #9A7A1C;
+    --accent-soft:  #FDF6E3;
+    --blue:         #3068B0;
+    --blue-soft:    #EAF0FA;
+    --green:        #2A8A58;
+    --green-soft:   #E8F5EE;
+    --red:          #A03030;
+    --red-soft:     #FAEAEA;
+    --purple:       #6040A0;
+    --purple-soft:  #F0EAF8;
+    --code-bg:      #F0F4F8;
+    --code-text:    #2A6090;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    padding: 48px 24px 96px;
+  }
+
+  .page { max-width: 860px; margin: 0 auto; }
+
+  .doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 36px;
+    font-weight: normal;
+    line-height: 1.2;
+    color: var(--text);
+    text-wrap: balance;
+    margin-bottom: 10px;
+  }
+  .doc-subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin-bottom: 20px;
+    max-width: 580px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .03em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .chip-success { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .chip-accent  { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  section { margin-bottom: 52px; }
+  h2 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 20px;
+    font-weight: normal;
+    color: var(--text);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    margin-top: 24px;
+  }
+  h3:first-child { margin-top: 0; }
+  p { color: var(--text); margin-bottom: 12px; max-width: 680px; }
+  p:last-child { margin-bottom: 0; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .card-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 640px) {
+    .card-grid, .card-grid-2 { grid-template-columns: 1fr; }
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .card h3 { margin-top: 0; margin-bottom: 10px; }
+  .card ul { padding-left: 18px; color: var(--text-muted); font-size: 13.5px; }
+  .card ul li { margin-bottom: 5px; }
+  .card ul li strong { color: var(--text); }
+
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border-soft);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: var(--code-text);
+    line-height: 1.6;
+  }
+
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border-soft); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 11px 14px; vertical-align: top; color: var(--text-muted); }
+  tbody td:first-child { color: var(--text); }
+  tbody td code { font-size: 12px; }
+
+  .test-list { display: flex; flex-direction: column; gap: 8px; }
+  .test-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .test-check {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--green-soft);
+    border: 1px solid var(--green);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    margin-top: 1px;
+  }
+  .test-name { font-weight: 500; color: var(--text); }
+  .test-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+  .endpoint {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .method {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    min-width: 48px;
+    text-align: center;
+  }
+  .method-get    { background: var(--blue-soft);   color: var(--blue);   border: 1px solid var(--blue); }
+  .method-post   { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--green); }
+  .method-patch  { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .endpoint-path {
+    font-family: 'SF Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .endpoint-desc {
+    padding: 10px 18px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .callout strong { color: var(--accent); }
+
+  .callout-blue {
+    background: var(--blue-soft);
+    border-left: 3px solid var(--blue);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .callout-blue strong { color: var(--blue); }
+
+  .callout-red {
+    background: var(--red-soft);
+    border-left: 3px solid var(--red);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .callout-red strong { color: var(--red); }
+
+  hr { border: none; border-top: 1px solid var(--border-soft); margin: 40px 0; }
+
+  .perm-yes { color: var(--green); font-size: 15px; text-align: center; }
+  .perm-no  { color: var(--red);   font-size: 15px; text-align: center; }
+  .perm-cond{ color: var(--accent);font-size: 15px; text-align: center; }
+
+  .role-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .role-admin   { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--purple); }
+  .role-socio   { background: var(--blue-soft);   color: var(--blue);   border: 1px solid var(--blue); }
+  .role-asociado{ background: var(--surface-2);   color: var(--text-muted); border: 1px solid var(--border); }
+
+  .aal-badge {
+    display: inline-block;
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .aal1 { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .aal2 { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--green); }
+
+  .flow-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    padding-left: 32px;
+  }
+  .flow-step {
+    position: relative;
+    padding: 12px 0 12px 16px;
+    border-left: 2px solid var(--border);
+  }
+  .flow-step:last-child { border-left-color: transparent; }
+  .flow-dot {
+    position: absolute;
+    left: -7px;
+    top: 16px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--blue);
+  }
+  .flow-step-title { font-weight: 500; color: var(--text); font-size: 14px; }
+  .flow-step-desc  { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+</style>
+
+<div class="page">
+
+  <!-- ── Header ── -->
+  <header class="doc-header">
+    <p class="eyebrow">Migración 23 &nbsp;·&nbsp; 19 julio 2026 &nbsp;·&nbsp; v1.0</p>
+    <h1>Roles y Autenticación en dos pasos</h1>
+    <p class="doc-subtitle">Modelo de permisos de tres niveles (Admin / Socio / Asociado) y verificación TOTP opcional con gate en el proxy de Next.js 16.</p>
+    <div class="chips">
+      <span class="chip">Backend · NestJS</span>
+      <span class="chip">Frontend · Next.js 16</span>
+      <span class="chip">Auth · Supabase TOTP MFA</span>
+      <span class="chip">Base de datos · RLS PostgreSQL</span>
+      <span class="chip chip-accent">Migración 23</span>
+      <span class="chip chip-success">11/11 pruebas ✓</span>
+    </div>
+  </header>
+
+  <!-- ── Resumen ── -->
+  <section>
+    <h2>Resumen</h2>
+    <p>La aplicación manejaba dos roles implícitos (<code>user</code> / <code>viewer</code>). Esta release los reemplaza por un modelo de tres niveles alineado con la estructura real de un estudio jurídico: un administrador de sistema, socios que ven toda la cartera del estudio, y asociados que ven únicamente sus propios expedientes.</p>
+    <p>Se agrega además soporte de segundo factor TOTP (Google Authenticator, Authy, etc.). El MFA es opcional en el MVP — los usuarios sin factor configurado reciben un aviso persistente en el header, pero no quedan bloqueados. Cuando un usuario configura el factor, el gate en <code>proxy.ts</code> intercepta el primer login e impide el acceso a cualquier ruta hasta completar la verificación.</p>
+  </section>
+
+  <!-- ── Roles ── -->
+  <section>
+    <h2>Los tres roles</h2>
+
+    <div class="card-grid" style="margin-bottom:24px;">
+      <div class="card">
+        <div class="card-label">Nivel 1</div>
+        <h3><span class="role-chip role-admin">Admin</span></h3>
+        <ul>
+          <li>Acceso completo a toda la plataforma</li>
+          <li>Único que puede otorgar o revocar rol <strong>Admin</strong></li>
+          <li>Ve todos los expedientes del estudio</li>
+          <li>Gestiona usuarios desde <code>/settings/users</code></li>
+          <li>Accede a <code>/admin</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Nivel 2</div>
+        <h3><span class="role-chip role-socio">Socio</span></h3>
+        <ul>
+          <li>Ve todos los expedientes del estudio</li>
+          <li>Gestiona usuarios (puede asignar Socio / Asociado)</li>
+          <li><strong>No</strong> puede otorgar ni revocar rol Admin</li>
+          <li><strong>No</strong> puede cambiar su propio rol</li>
+          <li>No accede a <code>/admin</code></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Nivel 3</div>
+        <h3><span class="role-chip role-asociado">Asociado</span></h3>
+        <ul>
+          <li>Ve solo expedientes donde es <strong>creador</strong> o <strong>responsable</strong></li>
+          <li>Sin acceso a <code>/settings/users</code></li>
+          <li>Sin acceso a <code>/admin</code></li>
+          <li>Puede gestionar su propia seguridad</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Migración de datos:</strong> los roles anteriores <code>'user'</code> y <code>'viewer'</code> fueron migrados automáticamente a <code>'asociado'</code>. El default de nuevos usuarios es <code>'asociado'</code>.
+    </div>
+
+    <h3>Matriz de permisos</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Acción / Recurso</th>
+            <th style="text-align:center">Admin</th>
+            <th style="text-align:center">Socio</th>
+            <th style="text-align:center">Asociado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Ver expedientes propios</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+          </tr>
+          <tr>
+            <td>Ver todos los expedientes del estudio</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Cargar documentos / crear expediente</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+          </tr>
+          <tr>
+            <td>Transición manual de estado (lifecycle)</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Ver <code>/settings/users</code></td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Cambiar rol de otro usuario</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-cond">⚠ excepto Admin</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Otorgar / revocar rol Admin</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-no">❌</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Cambiar el propio rol</td>
+            <td class="perm-no">❌</td>
+            <td class="perm-no">❌</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Acceder a <code>/admin</code></td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-no">❌</td>
+            <td class="perm-no">❌</td>
+          </tr>
+          <tr>
+            <td>Gestionar propia MFA</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+            <td class="perm-yes">✅</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-muted);margin-top:10px;">⚠ = permitido con restricciones detalladas en la columna.</p>
+  </section>
+
+  <!-- ── RLS ── -->
+  <section>
+    <h2>Implementación en base de datos (RLS)</h2>
+
+    <p>El control de acceso por rol se implementa en PostgreSQL a través de Row Level Security. La migración 23 introduce dos funciones <code>SECURITY DEFINER</code> que sirven como punto de verdad único y evitan la recursión 42P17.</p>
+
+    <div class="card-grid-2" style="margin-bottom:20px;">
+      <div class="card">
+        <h3>has_firm_wide_access()</h3>
+        <p style="font-size:13.5px;color:var(--text-muted);max-width:100%;">Retorna <code>true</code> si el usuario autenticado es <code>admin</code> o <code>socio</code>. Determina visibilidad firma-completa.</p>
+        <pre style="margin-top:12px;margin-bottom:0;"><code>select exists (
+  select 1 from public.users
+  where id = auth.uid()
+    and role in ('admin','socio')
+);</code></pre>
+      </div>
+      <div class="card">
+        <h3>can_access_case(cf_id uuid)</h3>
+        <p style="font-size:13.5px;color:var(--text-muted);max-width:100%;">Punto de acceso único para todas las políticas de expediente. Cubre los tres casos: creador, responsable, o acceso firma-completa.</p>
+        <pre style="margin-top:12px;margin-bottom:0;"><code>select exists (
+  select 1 from public.case_files cf
+  where cf.id = cf_id
+    and cf.deleted_at is null
+    and (
+      cf.created_by = auth.uid()
+      or cf.responsible_attorney_id = auth.uid()
+      or public.has_firm_wide_access()
+    )
+);</code></pre>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Por qué SECURITY DEFINER:</strong> sin este atributo, la función que consulta <code>public.users</code> para leer el rol dispara la misma política RLS sobre <code>users</code>, que a su vez consulta el rol — recursión infinita (error 42P17). Con SECURITY DEFINER la función corre como su dueño (postgres), que bypasea RLS, cortando el ciclo. El mismo patrón ya existía en <code>is_admin()</code> de la migración 12.
+    </div>
+
+    <h3>Tablas cubiertas por can_access_case()</h3>
+    <p>La migración 23 reescribe las políticas SELECT de 11 tablas satélite para delegar en <code>can_access_case()</code>. Antes cada tabla tenía la condición inline; ahora un solo cambio en la función afecta a todas.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tabla</th><th>Política</th></tr></thead>
+        <tbody>
+          <tr><td><code>case_files</code></td><td>SELECT, INSERT, UPDATE — política central</td></tr>
+          <tr><td><code>case_file_plaintiff</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_accident</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_medical</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_insurance</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_employer</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_admin_proceedings</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_parties</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_file_documents</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>case_deadlines</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+          <tr><td><code>workflow_transitions</code></td><td>SELECT via <code>can_access_case()</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout-red" style="margin-top:16px;">
+      <strong>Truco no obvio — RLS no cascadea:</strong> cambiar la política de <code>case_files</code> no afecta a las tablas satélite. Cada tabla evalúa su propia política. Si una tabla satélite mantiene la política antigua, un socio ve la fila del expediente pero obtiene datos vacíos al abrir la ficha — bug silencioso difícil de detectar.
+    </div>
+  </section>
+
+  <!-- ── Gestión de usuarios ── -->
+  <section>
+    <h2>Gestión de usuarios</h2>
+
+    <p>La pantalla <code>/settings/users</code> lista todos los usuarios del estudio y permite a admin y socio cambiar roles. El servidor evalúa el rol del actor antes de renderizar — un asociado que accede directamente a la URL ve un estado vacío de "sin acceso", no un error.</p>
+
+    <h3>Endpoint de cambio de rol</h3>
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-patch">PATCH</span>
+        <span class="endpoint-path">/users/:id/role</span>
+      </div>
+      <div class="endpoint-desc">
+        Body: <code>{ "role": "admin" | "socio" | "asociado" }</code><br>
+        Requiere <code>Authorization: Bearer &lt;jwt&gt;</code>. El <code>UsersService</code> verifica tres reglas antes de actualizar:
+        <ul style="margin-top:8px;padding-left:18px;font-size:13px;">
+          <li>Solo admin o socio pueden llamar al endpoint (403 si es asociado)</li>
+          <li>Nadie puede cambiar su propio rol (400)</li>
+          <li>Solo admin puede otorgar o revocar el rol <code>admin</code> (403 si es socio)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Comportamiento del dropdown en la UI</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Situación</th><th>Lo que ve el actor</th></tr></thead>
+        <tbody>
+          <tr><td>Actor = fila propia</td><td>Texto plano con "(vos)" — sin control interactivo</td></tr>
+          <tr><td>Actor = socio, fila con rol admin</td><td>Texto plano "Admin" — socio no puede tocarlo</td></tr>
+          <tr><td>Actor = socio, fila con otro rol</td><td>Dropdown con opciones Socio / Asociado</td></tr>
+          <tr><td>Actor = admin, cualquier fila ajena</td><td>Dropdown con opciones Admin / Socio / Asociado</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── MFA ── -->
+  <section>
+    <h2>Autenticación en dos pasos (TOTP)</h2>
+
+    <p>Se usa el MFA nativo de Supabase Auth. El factor es TOTP (Time-based One-Time Password), compatible con Google Authenticator, Authy, 1Password y cualquier app que soporte RFC 6238.</p>
+
+    <h3>Niveles de garantía (AAL)</h3>
+    <div class="card-grid-2" style="margin-bottom:20px;">
+      <div class="card">
+        <span class="aal-badge aal1">AAL1</span>
+        <p style="font-size:13.5px;color:var(--text-muted);margin-top:10px;max-width:100%;">El usuario completó solo la contraseña. Estado por defecto en todo login. Si el usuario no tiene factor configurado, permanece en AAL1 indefinidamente sin restricciones adicionales.</p>
+      </div>
+      <div class="card">
+        <span class="aal-badge aal2">AAL2</span>
+        <p style="font-size:13.5px;color:var(--text-muted);margin-top:10px;max-width:100%;">El usuario completó contraseña + código TOTP. Requerido cuando el JWT indica <code>nextLevel = 'aal2'</code>, es decir, cuando existe un factor TOTP verificado en la cuenta.</p>
+      </div>
+    </div>
+
+    <div class="callout-blue">
+      <strong>Cómo sabe el servidor si hay factor:</strong> <code>aal.nextLevel === 'aal2'</code> significa que el usuario <em>tiene</em> un factor TOTP verificado asociado a su cuenta. <code>aal.currentLevel === 'aal1'</code> significa que este login en particular todavía no lo completó. Ambos valores vienen de los claims del JWT — no hay llamada de red adicional.
+    </div>
+
+    <h3>Flujo de enrollment</h3>
+    <div class="flow-steps" style="margin-bottom:20px;">
+      <div class="flow-step">
+        <div class="flow-dot"></div>
+        <div class="flow-step-title">1 — Usuario abre <code>/settings/security</code></div>
+        <div class="flow-step-desc">El server component consulta <code>mfa.listFactors()</code>. Si no hay factores TOTP verificados, muestra el banner de advertencia y el botón "Activar verificación en dos pasos".</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot"></div>
+        <div class="flow-step-title">2 — Click en "Activar"</div>
+        <div class="flow-step-desc">El client component llama <code>mfa.enroll({ factorType: 'totp' })</code>. Antes de enrollar, elimina cualquier factor no verificado previo para evitar el error "duplicate friendly name".</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot"></div>
+        <div class="flow-step-title">3 — QR y código secreto</div>
+        <div class="flow-step-desc">Se muestra el QR para escanear con la app de autenticación y el código en texto plano como respaldo. El usuario ingresa el código de 6 dígitos generado por la app.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot"></div>
+        <div class="flow-step-title">4 — Verificación</div>
+        <div class="flow-step-desc"><code>mfa.challengeAndVerify({ factorId, code })</code>. Si es correcto, el factor queda en estado <code>verified</code>. El JWT del usuario ahora tiene <code>nextLevel = 'aal2'</code>.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-dot"></div>
+        <div class="flow-step-title">5 — Activación confirmada</div>
+        <div class="flow-step-desc">El banner de advertencia desaparece del header. En el próximo login, el sistema requerirá el código TOTP antes de dar acceso a cualquier ruta.</div>
+      </div>
+    </div>
+
+    <h3>Gate en proxy.ts (Next.js 16)</h3>
+    <p>En Next.js 16 el middleware se llama <code>proxy.ts</code> (no <code>middleware.ts</code>) y exporta una función <code>proxy</code>. El gate se coloca aquí y no en el layout de <code>(protected)</code> porque las route handlers de <code>/api/*</code> no pasan por el layout.</p>
+
+    <pre><code>// proxy.ts — fragmento relevante
+if (user && !isPublicRoute(pathname) && pathname !== MFA_VERIFY_ROUTE) {
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+    const verifyUrl = new URL(MFA_VERIFY_ROUTE, request.url)
+    verifyUrl.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(verifyUrl)
+  }
+}</code></pre>
+
+    <h3>Página de verificación — <code>/mfa-verify</code></h3>
+    <p>Ruta pública (no requiere AAL2 para acceder). El server component verifica que el usuario esté logueado, que no haya completado AAL2 ya, y que tenga un factor verificado. Si alguna condición no se cumple, redirige a <code>/dashboard</code>. El client component acepta el código de 6 dígitos y llama <code>mfa.challengeAndVerify()</code>; en caso de éxito redirige al destino original vía el param <code>redirectTo</code>.</p>
+
+    <h3>Desactivar MFA</h3>
+    <p>El botón "Desactivar" en <code>/settings/security</code> llama <code>mfa.unenroll({ factorId })</code>. El factor queda eliminado de la cuenta, <code>nextLevel</code> vuelve a <code>'aal1'</code>, y el gate deja de interceptar futuros logins.</p>
+  </section>
+
+  <!-- ── Indicadores en UI ── -->
+  <section>
+    <h2>Indicadores visuales</h2>
+
+    <div class="card-grid-2">
+      <div class="card">
+        <h3>Badge de rol en el header</h3>
+        <p style="font-size:13.5px;color:var(--text-muted);max-width:100%;">Chip pequeño junto al avatar que muestra <span class="role-chip role-admin">ADMIN</span>, <span class="role-chip role-socio">SOCIO</span>, o <span class="role-chip role-asociado">ASOCIADO</span>. El valor viene del server component del layout que consulta <code>public.users</code>.</p>
+      </div>
+      <div class="card">
+        <h3>Banner de MFA en el header</h3>
+        <p style="font-size:13.5px;color:var(--text-muted);max-width:100%;">Si <code>mfaEnabled === false</code> (sin factor TOTP verificado), aparece un aviso persistente con link a <code>/settings/security</code>. Desaparece en cuanto el usuario activa el factor.</p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:20px;">
+      <strong>Sidebar adaptativo:</strong> los ítems del sidebar se filtran según el rol. "Usuarios" solo aparece para Admin y Socio. "Administración" solo para Admin. "Seguridad" es visible para todos los roles. La lógica vive en <code>constants/navigation.ts</code> — cada ítem tiene un campo <code>roles?: readonly Role[]</code>; ausente significa visible para cualquier rol autenticado.
+    </div>
+  </section>
+
+  <!-- ── Componentes ── -->
+  <section>
+    <h2>Archivos nuevos y modificados</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Archivo</th><th>Tipo</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>supabase/migrations/00000000000023_roles_socio_asociado.sql</code></td>
+            <td>Nuevo</td>
+            <td>Migración de roles, funciones SECURITY DEFINER, reescritura de 20 políticas RLS</td>
+          </tr>
+          <tr>
+            <td><code>backend/api/src/users/users.service.ts</code></td>
+            <td>Nuevo</td>
+            <td><code>changeRole()</code> con las tres reglas de autorización</td>
+          </tr>
+          <tr>
+            <td><code>backend/api/src/users/users.controller.ts</code></td>
+            <td>Nuevo</td>
+            <td><code>PATCH /users/:id/role</code></td>
+          </tr>
+          <tr>
+            <td><code>frontend/constants/roles.ts</code></td>
+            <td>Nuevo</td>
+            <td>Constantes <code>ROLES</code>, <code>ROLE_LABELS</code>, tipo <code>Role</code> — sin dependencias de servidor</td>
+          </tr>
+          <tr>
+            <td><code>frontend/services/users.service.ts</code></td>
+            <td>Nuevo</td>
+            <td><code>getCurrentUserRole()</code> y <code>listUsers()</code> — solo server-side</td>
+          </tr>
+          <tr>
+            <td><code>frontend/components/settings/user-role-select.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Client component con dropdown de rol; import desde <code>constants/roles</code></td>
+          </tr>
+          <tr>
+            <td><code>frontend/app/(protected)/settings/users/page.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Server component; guard de rol en servidor</td>
+          </tr>
+          <tr>
+            <td><code>frontend/components/settings/mfa-setup.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Enrollment TOTP: estados no configurado / enrollando / verificado</td>
+          </tr>
+          <tr>
+            <td><code>frontend/app/(protected)/settings/security/page.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Server component; pasa <code>verifiedFactorId</code> a MfaSetup</td>
+          </tr>
+          <tr>
+            <td><code>frontend/components/auth/mfa-verify-form.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Formulario de 6 dígitos; llama <code>challengeAndVerify()</code></td>
+          </tr>
+          <tr>
+            <td><code>frontend/app/(auth)/mfa-verify/page.tsx</code></td>
+            <td>Nuevo</td>
+            <td>Server component con guards de redirección; recibe <code>redirectTo</code></td>
+          </tr>
+          <tr>
+            <td><code>frontend/proxy.ts</code></td>
+            <td>Modificado</td>
+            <td>Gate AAL1 → AAL2 agregado; protege también <code>/api/*</code></td>
+          </tr>
+          <tr>
+            <td><code>frontend/constants/navigation.ts</code></td>
+            <td>Modificado</td>
+            <td><code>requiredRole</code> → <code>roles?: readonly Role[]</code>; ítems Seguridad y Usuarios</td>
+          </tr>
+          <tr>
+            <td><code>frontend/app/(protected)/layout.tsx</code></td>
+            <td>Modificado</td>
+            <td>Pasa <code>mfaEnabled</code> y <code>userRole</code> a AppShell</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout-red" style="margin-top:16px;">
+      <strong>Truco de build — Client Component importando módulo de servidor:</strong> <code>user-role-select.tsx</code> necesitaba <code>ROLE_LABELS</code> y <code>Role</code> que vivían en <code>users.service.ts</code>. Ese archivo importa <code>next/headers</code> (solo disponible en Server Components). El build de Turbopack fallaba con error 42P01. Solución: mover las constantes a <code>constants/roles.ts</code> (cero dependencias) y que el Client Component importe desde ahí.
+    </div>
+  </section>
+
+  <!-- ── Testing ── -->
+  <section>
+    <h2>Resultados de testing</h2>
+    <div class="test-list">
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Badge de rol en el header</div>
+          <div class="test-desc">El chip SOCIO aparece correctamente junto al avatar después de asignar el rol desde SQL.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Pantalla de usuarios carga para Socio</div>
+          <div class="test-desc"><code>/settings/users</code> muestra la tabla con los usuarios del estudio. El propio usuario aparece como texto "Socio (vos)" sin dropdown.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Sidebar se adapta al rol</div>
+          <div class="test-desc">Socio ve "Usuarios" pero no "Administración". Asociado no ve ninguno de los dos.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Enrollment TOTP completo</div>
+          <div class="test-desc">QR generado, escaneado con app de autenticación, código de 6 dígitos verificado. Estado cambia a "Verificación en dos pasos activa".</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Banner de MFA desaparece al activar</div>
+          <div class="test-desc">El aviso "Activá la verificación en dos pasos" desapareció del header una vez completado el enrollment.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Socio ve expedientes del asociado</div>
+          <div class="test-desc">TEST-9999/2026 creado con <code>created_by = asociado</code> aparece en la lista del Socio. RLS <code>has_firm_wide_access()</code> funciona correctamente.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Asociado solo ve sus propios expedientes</div>
+          <div class="test-desc">Logueado como asociado@test.com, la lista muestra únicamente TEST-9999/2026. Los 30+ expedientes del Socio no aparecen.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">URL directa a expediente ajeno → 404</div>
+          <div class="test-desc">Asociado navegando a <code>/cases/5ee6a636-...</code> (expediente del Socio) recibe 404. RLS bloquea la query silenciosamente.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Asociado no ve botones de gestión de usuarios</div>
+          <div class="test-desc">Acceso directo a <code>/settings/users</code> muestra estado vacío "Sin acceso" en lugar de error.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Build de Next.js pasa sin errores</div>
+          <div class="test-desc">Turbopack compiló sin errores después de mover <code>ROLES/ROLE_LABELS/Role</code> a <code>constants/roles.ts</code>. Error previo: "importing module that depends on next/headers in Client Component".</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">NestJS — endpoint y módulo inicializados</div>
+          <div class="test-desc"><code>[InstanceLoader] UsersModule</code> y <code>[RouterExplorer] Mapped {/users/:id/role, PATCH}</code> confirmados en los logs del servidor.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
