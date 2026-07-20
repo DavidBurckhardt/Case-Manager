@@ -3,6 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service'
 import { NatsService } from '../messaging/nats.service'
 import { ExtractionService, ExtractionFile } from '../llm/extraction.service'
 import { DeadlinesService } from '../deadlines/deadlines.service'
+import { LifecycleService } from '../lifecycle/lifecycle.service'
 import type { ExtractedCase } from '../llm/extraction.schema'
 import type { ExtractRequest } from '../messaging/contracts'
 
@@ -26,6 +27,7 @@ export class PipelineService implements OnApplicationBootstrap {
     private readonly nats: NatsService,
     private readonly extraction: ExtractionService,
     private readonly deadlines: DeadlinesService,
+    private readonly lifecycle: LifecycleService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,7 +45,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const { data, error } = await this.db
       .from('workflow_states')
       .select('id')
-      .eq('code', 'initial_filing')
+      .eq('code', 'INICIADO')
       .single()
     if (error || !data) throw new Error('Could not resolve initial workflow state')
     return data.id
@@ -148,6 +150,9 @@ export class PipelineService implements OnApplicationBootstrap {
       this.logger.error(`Deadline generation failed for case ${caseId}: ${(err as Error).message}`)
       // no re-throw — deadline failure must not mark case as preview
     }
+    // Same contract as the deadline engine: transitionFromActs swallows its own
+    // errors, so a lifecycle problem never marks the case as preview either.
+    await this.lifecycle.transitionFromActs(caseId, metadata.procedural_acts ?? [])
     this.logger.log(`✓ Case ${caseId} enriched — processing_phase=complete`)
   }
 

@@ -9,6 +9,8 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CaseTabs } from '@/components/cases/case-tabs'
 import { countOverdueDeadlines } from '@/services/deadlines.service'
+import { getCurrentUserRole } from '@/services/users.service'
+import { LifecycleBadge } from '@/components/cases/lifecycle-badge'
 
 export const metadata = { title: 'Detalle de Expediente — Generador de Expedientes' }
 
@@ -78,7 +80,12 @@ export default async function CaseDetailPage({ params }: Props) {
     notFound()
   }
 
-  const overdueCount = await countOverdueDeadlines(id)
+  const [overdueCount, role] = await Promise.all([
+    countOverdueDeadlines(id),
+    getCurrentUserRole(),
+  ])
+  // Mover el expediente de estado es una decisión procesal: solo socios y admin.
+  const canTransition = role === 'admin' || role === 'socio'
 
   const {
     case_number, title, caption, court, jurisdiction, department,
@@ -328,6 +335,7 @@ export default async function CaseDetailPage({ params }: Props) {
               {jurisdiction && <> · {jurisdiction}</>}
             </p>
           </div>
+          <LifecycleBadge code={current_status.code} label={current_status.label} />
         </div>
       </div>
       {overdueCount > 0 && (
@@ -345,7 +353,12 @@ export default async function CaseDetailPage({ params }: Props) {
         </div>
       )}
 
-      <CaseTabs caseId={id} expedienteContent={expedienteContent} />
+      <CaseTabs
+        caseId={id}
+        expedienteContent={expedienteContent}
+        currentStatus={{ code: current_status.code, label: current_status.label }}
+        canTransition={canTransition}
+      />
     </div>
   )
 }

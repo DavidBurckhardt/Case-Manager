@@ -11,6 +11,7 @@ import { ProcessingModule } from './processing/processing.module'
 import { AuthModule } from './auth/auth.module'
 import { DeadlinesModule } from './deadlines/deadlines.module'
 import { UsersModule } from './users/users.module'
+import { LifecycleModule } from './lifecycle/lifecycle.module'
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { UsersModule } from './users/users.module'
     AuthModule,
     DeadlinesModule,
     UsersModule,
+    LifecycleModule,
   ],
   controllers: [HealthController],
 })

@@ -1,0 +1,958 @@
+<title>Ciclo de Vida del Expediente — Documentación Técnica</title>
+<style>
+  :root {
+    --bg:           #0E1825;
+    --surface:      #152130;
+    --surface-2:    #1C2E42;
+    --border:       #253B55;
+    --border-soft:  #1D2F45;
+    --text:         #C2D4E8;
+    --text-muted:   #5C7A99;
+    --text-dim:     #3A5570;
+    --accent:       #B8962E;
+    --accent-soft:  #2A2010;
+    --blue:         #4B82C4;
+    --blue-soft:    #162038;
+    --green:        #3A9E6E;
+    --green-soft:   #0E2518;
+    --red:          #B84040;
+    --red-soft:     #2A1010;
+    --purple:       #7B5CB8;
+    --purple-soft:  #1E1530;
+    --code-bg:      #091218;
+    --code-text:    #7BBFE0;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:           #F2F5FA;
+      --surface:      #FFFFFF;
+      --surface-2:    #EBF0F8;
+      --border:       #D0DCEA;
+      --border-soft:  #E2EAF4;
+      --text:         #162035;
+      --text-muted:   #5A7090;
+      --text-dim:     #90A8C0;
+      --accent:       #9A7A1C;
+      --accent-soft:  #FDF6E3;
+      --blue:         #3068B0;
+      --blue-soft:    #EAF0FA;
+      --green:        #2A8A58;
+      --green-soft:   #E8F5EE;
+      --red:          #A03030;
+      --red-soft:     #FAEAEA;
+      --purple:       #6040A0;
+      --purple-soft:  #F0EAF8;
+      --code-bg:      #F0F4F8;
+      --code-text:    #2A6090;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:           #0E1825;
+    --surface:      #152130;
+    --surface-2:    #1C2E42;
+    --border:       #253B55;
+    --border-soft:  #1D2F45;
+    --text:         #C2D4E8;
+    --text-muted:   #5C7A99;
+    --text-dim:     #3A5570;
+    --accent:       #B8962E;
+    --accent-soft:  #2A2010;
+    --blue:         #4B82C4;
+    --blue-soft:    #162038;
+    --green:        #3A9E6E;
+    --green-soft:   #0E2518;
+    --red:          #B84040;
+    --red-soft:     #2A1010;
+    --purple:       #7B5CB8;
+    --purple-soft:  #1E1530;
+    --code-bg:      #091218;
+    --code-text:    #7BBFE0;
+  }
+  :root[data-theme="light"] {
+    --bg:           #F2F5FA;
+    --surface:      #FFFFFF;
+    --surface-2:    #EBF0F8;
+    --border:       #D0DCEA;
+    --border-soft:  #E2EAF4;
+    --text:         #162035;
+    --text-muted:   #5A7090;
+    --text-dim:     #90A8C0;
+    --accent:       #9A7A1C;
+    --accent-soft:  #FDF6E3;
+    --blue:         #3068B0;
+    --blue-soft:    #EAF0FA;
+    --green:        #2A8A58;
+    --green-soft:   #E8F5EE;
+    --red:          #A03030;
+    --red-soft:     #FAEAEA;
+    --purple:       #6040A0;
+    --purple-soft:  #F0EAF8;
+    --code-bg:      #F0F4F8;
+    --code-text:    #2A6090;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.65;
+    padding: 48px 24px 96px;
+  }
+
+  .page { max-width: 860px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .doc-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+    margin-bottom: 48px;
+  }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+  h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 36px;
+    font-weight: normal;
+    line-height: 1.2;
+    color: var(--text);
+    text-wrap: balance;
+    margin-bottom: 10px;
+  }
+  .doc-subtitle {
+    color: var(--text-muted);
+    font-size: 15px;
+    margin-bottom: 20px;
+    max-width: 580px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: .03em;
+    padding: 3px 10px;
+    border-radius: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .chip-success { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .chip-accent  { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  /* ── Section ── */
+  section { margin-bottom: 52px; }
+  h2 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 20px;
+    font-weight: normal;
+    color: var(--text);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    margin-top: 24px;
+  }
+  h3:first-child { margin-top: 0; }
+  p { color: var(--text); margin-bottom: 12px; max-width: 680px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .card h3 { margin-top: 0; margin-bottom: 10px; }
+  .card ul { padding-left: 18px; color: var(--text-muted); font-size: 13.5px; }
+  .card ul li { margin-bottom: 5px; }
+  .card ul li strong { color: var(--text); }
+
+  /* ── Code ── */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12.5px;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 1.5px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border-soft);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border-soft);
+    border-radius: 8px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+  }
+  pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: var(--code-text);
+    line-height: 1.6;
+  }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border-soft); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 11px 14px; vertical-align: top; color: var(--text-muted); }
+  tbody td:first-child { color: var(--text); }
+  tbody td code { font-size: 12px; }
+
+  /* ── Test results ── */
+  .test-list { display: flex; flex-direction: column; gap: 8px; }
+  .test-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .test-check {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--green-soft);
+    border: 1px solid var(--green);
+    color: var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    margin-top: 1px;
+  }
+  .test-name { font-weight: 500; color: var(--text); }
+  .test-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── API endpoint ── */
+  .endpoint {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 14px;
+  }
+  .endpoint-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .method {
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    min-width: 42px;
+    text-align: center;
+  }
+  .method-get  { background: var(--blue-soft);   color: var(--blue);   border: 1px solid var(--blue); }
+  .method-post { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--green); }
+  .endpoint-path {
+    font-family: 'SF Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .endpoint-desc {
+    padding: 10px 18px 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ── Role badge ── */
+  .role-table td:nth-child(2), .role-table td:nth-child(3) {
+    text-align: center;
+    font-size: 15px;
+  }
+
+  /* ── State badge ── */
+  .state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-family: -apple-system, system-ui, sans-serif;
+  }
+  .state-active   { background: var(--blue-soft);   border: 1px solid var(--blue);   color: var(--blue); }
+  .state-terminal-good { background: var(--green-soft); border: 1px solid var(--green); color: var(--green); }
+  .state-terminal-bad  { background: var(--red-soft);   border: 1px solid var(--red);   color: var(--red); }
+  .state-special  { background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); }
+
+  /* ── Note / callout ── */
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 6px 6px 0;
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--text);
+    margin-bottom: 16px;
+  }
+  .callout strong { color: var(--accent); }
+
+  /* ── Divider ── */
+  hr { border: none; border-top: 1px solid var(--border-soft); margin: 40px 0; }
+
+  /* ── Canvas container ── */
+  .diagram-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    overflow-x: auto;
+  }
+  canvas { display: block; margin: 0 auto; }
+
+  /* ── Trigger badge ── */
+  .badge-auto   { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.05em;
+                  padding:2px 7px; border-radius:3px; background:var(--purple-soft);
+                  color:var(--purple); border:1px solid var(--purple); }
+  .badge-manual { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.05em;
+                  padding:2px 7px; border-radius:3px; background:var(--blue-soft);
+                  color:var(--blue); border:1px solid var(--blue); }
+  .badge-forbidden { display:inline-block; font-size:11px; font-weight:600;
+                     padding:2px 7px; border-radius:3px; background:var(--red-soft);
+                     color:var(--red); border:1px solid var(--red); }
+</style>
+
+<div class="page">
+
+  <!-- ── Header ── -->
+  <header class="doc-header">
+    <p class="eyebrow">Migración 24 &nbsp;·&nbsp; 19 julio 2026 &nbsp;·&nbsp; v1.0</p>
+    <h1>Ciclo de Vida del Expediente</h1>
+    <p class="doc-subtitle">State machine judicial sobre el proceso CPCCN para el Generador de Expedientes. Implementa transiciones automáticas por pipeline e historial de auditoría con control de acceso por rol.</p>
+    <div class="chips">
+      <span class="chip">Backend · NestJS</span>
+      <span class="chip">Frontend · Next.js 16</span>
+      <span class="chip">Base de datos · Supabase (PostgreSQL)</span>
+      <span class="chip chip-accent">Migración 24</span>
+      <span class="chip chip-success">7/7 pruebas ✓</span>
+    </div>
+  </header>
+
+  <!-- ── Resumen ── -->
+  <section>
+    <h2>Resumen</h2>
+    <p>Cada expediente judicial tiene un estado procesal que avanza conforme a las reglas del CPCCN. Esta feature reemplaza los 11 estados genéricos en inglés por 13 estados en español con el proceso judicial argentino real, agrega un grafo de transiciones válidas, y registra en auditoría cada cambio de estado indicando si fue automático (disparado por el pipeline de IA) o manual (acción de un usuario con justificación).</p>
+    <p>Los expedientes ya existentes en la base fueron remapeados automáticamente a sus equivalentes en español durante la migración, sin pérdida de datos.</p>
+  </section>
+
+  <!-- ── DB ── -->
+  <section>
+    <h2>Cambios en base de datos</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-label">Modificado</div>
+        <h3>workflow_states</h3>
+        <ul>
+          <li>11 estados en inglés <strong>eliminados</strong></li>
+          <li>13 estados CPCCN <strong>insertados</strong></li>
+          <li>Expedientes existentes <strong>remapeados</strong></li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Tabla nueva</div>
+        <h3>workflow_allowed_transitions</h3>
+        <ul>
+          <li>18 aristas del grafo</li>
+          <li>Solo lectura para <code>authenticated</code></li>
+          <li>Validación de toda transición</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Tabla nueva</div>
+        <h3>workflow_transitions</h3>
+        <ul>
+          <li>Auditoría append-only</li>
+          <li>RLS via <code>can_access_case()</code></li>
+          <li>Campos: trigger, actor, justificación</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Estados</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Label</th>
+            <th>sort_order</th>
+            <th>Terminal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>INICIADO</code></td><td>Iniciado</td><td>10</td><td>—</td></tr>
+          <tr><td><code>ADMITIDO</code></td><td>Admitido</td><td>20</td><td>—</td></tr>
+          <tr><td><code>NOTIFICANDO</code></td><td>Notificando</td><td>30</td><td>—</td></tr>
+          <tr><td><code>REBELDE</code></td><td>En rebeldía</td><td>35</td><td>—</td></tr>
+          <tr><td><code>EN_TRASLADO</code></td><td>En traslado</td><td>40</td><td>—</td></tr>
+          <tr><td><code>PRUEBA</code></td><td>Período de prueba</td><td>50</td><td>—</td></tr>
+          <tr><td><code>ALEGATOS</code></td><td>Alegatos</td><td>60</td><td>—</td></tr>
+          <tr><td><code>SENTENCIA_1</code></td><td>Sentencia 1ª instancia</td><td>70</td><td>—</td></tr>
+          <tr><td><code>APELACION</code></td><td>Apelación</td><td>80</td><td>—</td></tr>
+          <tr><td><code>EJECUCION</code></td><td>Ejecución</td><td>90</td><td>—</td></tr>
+          <tr><td><code>ACUERDO</code></td><td>Acuerdo/Conciliación</td><td>95</td><td>✓ positivo</td></tr>
+          <tr><td><code>CADUCIDAD</code></td><td>Caducidad declarada</td><td>96</td><td>✓ negativo</td></tr>
+          <tr><td><code>CERRADO</code></td><td>Cerrado</td><td>100</td><td>✓ positivo</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Diagrama ── -->
+  <section>
+    <h2>Grafo de estados</h2>
+    <div class="diagram-wrap">
+      <canvas id="diagram" width="540" height="870"></canvas>
+    </div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--text-muted);">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4B82C4;margin-right:5px;"></span>Estado activo</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#3A9E6E;margin-right:5px;"></span>Terminal positivo</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#B84040;margin-right:5px;"></span>Terminal negativo</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#B8962E;margin-right:5px;"></span>Declaración judicial</span>
+    </div>
+  </section>
+
+  <!-- ── Backend ── -->
+  <section>
+    <h2>Arquitectura backend</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-label">Módulo nuevo</div>
+        <h3>LifecycleService</h3>
+        <ul>
+          <li><code>transitionFromActs()</code></li>
+          <li><code>transitionAuto()</code></li>
+          <li><code>transitionManual()</code></li>
+          <li><code>getHistory()</code></li>
+          <li><code>getStates()</code></li>
+          <li><code>shortestPath()</code> pura</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Módulo nuevo</div>
+        <h3>LifecycleController</h3>
+        <ul>
+          <li><code>GET /workflow-states</code></li>
+          <li><code>GET /cases/:id/lifecycle/history</code></li>
+          <li><code>POST /cases/:id/lifecycle/transition</code></li>
+          <li>Auth: <code>SupabaseAuthGuard</code></li>
+          <li>Acceso verificado por caso</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Modificado</div>
+        <h3>PipelineService</h3>
+        <ul>
+          <li><code>initial_filing</code> → <code>INICIADO</code></li>
+          <li>Llama <code>transitionFromActs()</code> post-extracción</li>
+          <li>No propaga errores del lifecycle</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Mapa act_type → estado</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>act_type (LLM)</th><th>Estado destino</th><th>Orden</th></tr></thead>
+        <tbody>
+          <tr><td><code>TRASLADO_DEMANDA</code></td><td><span class="state-badge state-active">EN_TRASLADO</span></td><td>1 (más temprano)</td></tr>
+          <tr><td><code>APERTURA_PRUEBA</code></td><td><span class="state-badge state-active">PRUEBA</span></td><td>2</td></tr>
+          <tr><td><code>SENTENCIA_PRIMERA_INSTANCIA</code></td><td><span class="state-badge state-active">SENTENCIA_1</span></td><td>3</td></tr>
+          <tr><td><code>EXPRESION_AGRAVIOS</code></td><td><span class="state-badge state-active">APELACION</span></td><td>4 (más avanzado)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);">Cuando un documento contiene múltiples actos, se aplica únicamente el más avanzado según el orden de la tabla.</p>
+  </section>
+
+  <!-- ── API ── -->
+  <section>
+    <h2>Referencia de API</h2>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/workflow-states</span>
+      </div>
+      <div class="endpoint-desc">Devuelve el catálogo completo de estados con sus transiciones permitidas (<code>allowed_transitions: string[]</code>). Lo consume el frontend para saber qué botones mostrar en cada expediente.</div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/cases/:id/lifecycle/history</span>
+      </div>
+      <div class="endpoint-desc">Historial de transiciones del expediente ordenado cronológicamente. Incluye <code>from_state</code>, <code>to_state</code>, <code>trigger_type</code>, <code>triggered_by_name</code>, <code>justification</code> y <code>source_act_type</code>.</div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/cases/:id/lifecycle/transition</span>
+      </div>
+      <div class="endpoint-desc">
+        Ejecuta una transición manual. Body: <code>{ to_state_code: string, justification: string }</code>.<br>
+        <code>justification</code> es obligatorio — el endpoint rechaza la petición si está vacío.<br>
+        Requiere que el usuario sea creador, abogado responsable, socio o admin del caso.
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Todos los endpoints requieren</strong> el header <code>Authorization: Bearer &lt;supabase-jwt&gt;</code> y validan acceso por caso antes de actuar. El cliente de servicio (service_role) se usa solo internamente; las peticiones externas siempre pasan por la guardia de autenticación.
+    </div>
+  </section>
+
+  <!-- ── AUTO / Fast-forward ── -->
+  <section>
+    <h2>Transición automática y fast-forward</h2>
+
+    <p>El pipeline de extracción crea todo expediente nuevo en estado <code>INICIADO</code>. Ningún destino de <code>ACT_TO_STATE</code> es adyacente a <code>INICIADO</code> en el grafo (un traslado de demanda implica que la demanda ya fue admitida y que la notificación ya salió). Para no inventar estados en el historial ni saltear etapas procesales reales, <code>transitionAuto</code> calcula el <strong>camino más corto</strong> entre el estado actual y el destino, y registra cada salto como una fila <span class="badge-auto">AUTO</span> independiente.</p>
+
+    <h3>Ejemplo — documento con TRASLADO_DEMANDA sobre expediente nuevo</h3>
+    <pre><code>INICIADO → ADMITIDO       AUTO · TRASLADO_DEMANDA
+ADMITIDO → NOTIFICANDO    AUTO · TRASLADO_DEMANDA
+NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
+
+    <h3>Estados bloqueados para passthrough automático</h3>
+    <p style="font-size:13.5px;color:var(--text-muted);">El algoritmo BFS excluye cuatro estados como nodos intermedios. Son declaraciones judiciales o acuerdos entre partes: inferirlos de un documento sería inventar un hecho procesal. Solo se pueden alcanzar como destino final, nunca como paso de camino.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+      <span class="state-badge state-special">REBELDE</span>
+      <span class="state-badge state-terminal-bad">CADUCIDAD</span>
+      <span class="state-badge state-terminal-good">ACUERDO</span>
+      <span class="state-badge state-terminal-good">CERRADO</span>
+    </div>
+  </section>
+
+  <!-- ── Roles ── -->
+  <section>
+    <h2>Control de acceso por rol</h2>
+    <div class="table-wrap">
+      <table class="role-table">
+        <thead>
+          <tr><th>Acción</th><th>Admin / Socio</th><th>Asociado</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Ver tab "Historial"</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver historial de transiciones</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver badge de estado en header</td><td>✅</td><td>✅</td></tr>
+          <tr><td>Ver botones "Cambiar estado a"</td><td>✅</td><td>❌</td></tr>
+          <tr><td>Ejecutar transición manual (endpoint)</td><td>✅</td><td>❌ 403</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);margin-top:12px;">El server component de la ficha calcula <code>canTransition = role === 'admin' || role === 'socio'</code> en el servidor y lo pasa al cliente. El endpoint realiza su propia verificación independientemente, por lo que la protección existe en ambas capas.</p>
+  </section>
+
+  <!-- ── Frontend ── -->
+  <section>
+    <h2>Componentes frontend</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-label">Nuevo</div>
+        <h3>LifecycleBadge</h3>
+        <ul>
+          <li>Badge color por categoría</li>
+          <li>Azul = activo</li>
+          <li>Verde = terminal positivo</li>
+          <li>Rojo = terminal negativo</li>
+          <li>Ámbar = declaración judicial</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Nuevo</div>
+        <h3>LifecycleTab</h3>
+        <ul>
+          <li>Card de estado actual + descripción</li>
+          <li>Botones de transición (solo si <code>canTransition</code>)</li>
+          <li>Modal con justificación obligatoria</li>
+          <li>Timeline de historial con íconos AUTO/MANUAL</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Modificado</div>
+        <h3>CaseTabs + ficha</h3>
+        <ul>
+          <li>Tab "Historial" agregado</li>
+          <li><code>LifecycleBadge</code> en el header</li>
+          <li>Props <code>currentStatus</code> y <code>canTransition</code></li>
+          <li><code>router.refresh()</code> post-transición</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Testing ── -->
+  <section>
+    <h2>Resultados de testing</h2>
+    <div class="test-list">
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Badge de estado en el header de la ficha</div>
+          <div class="test-desc">Aparece en azul con label en español y descripción del estado debajo.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Tab "Historial" existe y carga correctamente</div>
+          <div class="test-desc">Visible junto a Expediente y Plazos. Sin errores. Muestra "Todavía no hay cambios registrados" cuando corresponde.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Transición manual válida con justificación</div>
+          <div class="test-desc">INICIADO → ADMITIDO con justificación "Demanda admitida por el Juzgado el 19/07/2026". El modal se cierra, el badge se actualiza.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Historial refleja el cambio con actor y justificación</div>
+          <div class="test-desc">Fila con fecha, tipo MANUAL, email del usuario y justificación visible en bloque.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Grafo correcto — solo destinos permitidos</div>
+          <div class="test-desc">Desde NOTIFICANDO aparecen exactamente En traslado, En rebeldía y Caducidad declarada. Ningún salto inválido disponible.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Fast-forward automático por pipeline (simulado con SQL)</div>
+          <div class="test-desc">Tres filas AUTO consecutivas: Iniciado→Admitido→Notificando→En traslado, todas con source_act_type=TRASLADO_DEMANDA.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Asociado no ve botones de transición</div>
+          <div class="test-desc">El tab Historial carga, el estado y el historial son visibles, pero no aparece la sección "Cambiar estado a".</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('diagram');
+  const dpr = window.devicePixelRatio || 1;
+  const W = 540, H = 870;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // ── tokens from CSS vars ──
+  const style = getComputedStyle(document.documentElement);
+  const t = (v) => style.getPropertyValue(v).trim();
+
+  const COL = {
+    active:   t('--blue'),
+    activeBg: t('--blue-soft') || '#162038',
+    good:     t('--green'),
+    goodBg:   t('--green-soft') || '#0E2518',
+    bad:      t('--red'),
+    badBg:    t('--red-soft') || '#2A1010',
+    special:  t('--accent'),
+    specialBg:t('--accent-soft') || '#2A2010',
+    border:   t('--border'),
+    text:     t('--text'),
+    muted:    t('--text-muted'),
+    dim:      t('--text-dim'),
+  };
+
+  // ── node layout ──
+  const NW = 150, NH = 32, NR = 6;
+  // main column center x
+  const MX = 150;
+  // right branch center x
+  const BX = 390;
+
+  const nodes = {
+    INICIADO:    { x: MX,  y: 40,  label: 'Iniciado',            type: 'active' },
+    ADMITIDO:    { x: MX,  y: 115, label: 'Admitido',            type: 'active' },
+    NOTIFICANDO: { x: MX,  y: 190, label: 'Notificando',         type: 'active' },
+    REBELDE:     { x: BX,  y: 250, label: 'En rebeldía',         type: 'special' },
+    EN_TRASLADO: { x: MX,  y: 330, label: 'En traslado',         type: 'active' },
+    PRUEBA:      { x: MX,  y: 430, label: 'Período de prueba',   type: 'active' },
+    ALEGATOS:    { x: MX,  y: 510, label: 'Alegatos',            type: 'active' },
+    SENTENCIA_1: { x: MX,  y: 590, label: 'Sentencia 1ª inst.',  type: 'active' },
+    APELACION:   { x: MX,  y: 670, label: 'Apelación',           type: 'active' },
+    EJECUCION:   { x: MX,  y: 750, label: 'Ejecución',           type: 'active' },
+    CERRADO:     { x: MX,  y: 830, label: 'Cerrado',             type: 'good' },
+    ACUERDO:     { x: BX,  y: 590, label: 'Acuerdo',             type: 'good' },
+    CADUCIDAD:   { x: BX,  y: 430, label: 'Caducidad',           type: 'bad' },
+  };
+
+  function nodeColors(type) {
+    if (type === 'good')    return { fill: COL.goodBg,    stroke: COL.good,    text: COL.good };
+    if (type === 'bad')     return { fill: COL.badBg,     stroke: COL.bad,     text: COL.bad };
+    if (type === 'special') return { fill: COL.specialBg, stroke: COL.special, text: COL.special };
+    return { fill: COL.activeBg, stroke: COL.active, text: COL.active };
+  }
+
+  function drawNode(id) {
+    const n = nodes[id];
+    const c = nodeColors(n.type);
+    const x = n.x - NW/2, y = n.y - NH/2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, NW, NH, NR);
+    ctx.fillStyle = c.fill;
+    ctx.fill();
+    ctx.strokeStyle = c.stroke;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = c.text;
+    ctx.font = '12px -apple-system, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n.label, n.x, n.y);
+  }
+
+  function arrow(x1, y1, x2, y2, curved) {
+    ctx.beginPath();
+    if (curved) {
+      const mx = (x1 + x2) / 2;
+      ctx.moveTo(x1, y1);
+      ctx.bezierCurveTo(x1, y1 + 30, x2, y2 - 30, x2, y2);
+    } else {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    }
+    ctx.strokeStyle = COL.dim;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // arrowhead
+    const ang = Math.atan2(y2 - (curved ? y2-30 : y1), x2 - (curved ? x2 : x1));
+    const aLen = 7;
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - aLen * Math.cos(ang - 0.4), y2 - aLen * Math.sin(ang - 0.4));
+    ctx.lineTo(x2 - aLen * Math.cos(ang + 0.4), y2 - aLen * Math.sin(ang + 0.4));
+    ctx.closePath();
+    ctx.fillStyle = COL.dim;
+    ctx.fill();
+  }
+
+  function bottom(id) { return { x: nodes[id].x, y: nodes[id].y + NH/2 }; }
+  function top(id)    { return { x: nodes[id].x, y: nodes[id].y - NH/2 }; }
+  function right(id)  { return { x: nodes[id].x + NW/2, y: nodes[id].y }; }
+  function left(id)   { return { x: nodes[id].x - NW/2, y: nodes[id].y }; }
+
+  // ── straight main flow edges ──
+  const mainFlow = ['INICIADO','ADMITIDO','NOTIFICANDO','EN_TRASLADO','PRUEBA','ALEGATOS','SENTENCIA_1','APELACION','EJECUCION','CERRADO'];
+  for (let i = 0; i < mainFlow.length - 1; i++) {
+    const b = bottom(mainFlow[i]), t2 = top(mainFlow[i+1]);
+    arrow(b.x, b.y, t2.x, t2.y);
+  }
+
+  // NOTIFICANDO → REBELDE (right then down)
+  {
+    const r = right('NOTIFICANDO'), tl = left('REBELDE');
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(tl.x - 10, r.y);
+    ctx.lineTo(tl.x - 10, tl.y);
+    ctx.lineTo(tl.x, tl.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    // arrowhead pointing right
+    const x2 = tl.x, y2 = tl.y;
+    ctx.beginPath(); ctx.moveTo(x2,y2);
+    ctx.lineTo(x2-7,y2-4); ctx.lineTo(x2-7,y2+4); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // REBELDE → PRUEBA (down then left)
+  {
+    const b = bottom('REBELDE'), tl = top('PRUEBA');
+    const midY = (b.y + tl.y) / 2;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(b.x, midY);
+    ctx.lineTo(tl.x, midY);
+    ctx.lineTo(tl.x, tl.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tl.x, tl.y);
+    ctx.lineTo(tl.x-4,tl.y-7); ctx.lineTo(tl.x+4,tl.y-7); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // EN_TRASLADO → CADUCIDAD
+  {
+    const r = right('EN_TRASLADO'), tl = left('CADUCIDAD');
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(tl.x - 8, r.y);
+    ctx.lineTo(tl.x - 8, tl.y);
+    ctx.lineTo(tl.x, tl.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
+    ctx.lineTo(tl.x-7,tl.y-4); ctx.lineTo(tl.x-7,tl.y+4); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // PRUEBA → CADUCIDAD (up-right)
+  {
+    const r = right('PRUEBA'), b = bottom('CADUCIDAD');
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(b.x, r.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(b.x,b.y);
+    ctx.lineTo(b.x-4,b.y-7); ctx.lineTo(b.x+4,b.y-7); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // ALEGATOS → CADUCIDAD (right, up, then arrow up)
+  {
+    const r = right('ALEGATOS');
+    const b = bottom('CADUCIDAD');
+    const railX = BX + NW/2 + 18;
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(railX, r.y);
+    ctx.lineTo(railX, b.y + 8);
+    ctx.lineTo(b.x + NW/2, b.y + 8);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(b.x + NW/2, b.y + 8);
+    ctx.lineTo(b.x + NW/2 - 4, b.y + 8 - 6);
+    ctx.lineTo(b.x + NW/2 + 4, b.y + 8 - 6);
+    ctx.closePath(); ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // EN_TRASLADO → ACUERDO (down-right)
+  {
+    const r = right('EN_TRASLADO'), tl = left('ACUERDO');
+    const midX = (r.x + tl.x) / 2 + 20;
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(midX, r.y);
+    ctx.lineTo(midX, tl.y);
+    ctx.lineTo(tl.x, tl.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
+    ctx.lineTo(tl.x-7,tl.y-4); ctx.lineTo(tl.x-7,tl.y+4); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // SENTENCIA_1 → ACUERDO
+  {
+    const r = right('SENTENCIA_1'), tl = top('ACUERDO');
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(tl.x, r.y);
+    ctx.lineTo(tl.x, tl.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
+    ctx.lineTo(tl.x-4,tl.y-7); ctx.lineTo(tl.x+4,tl.y-7); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // SENTENCIA_1 → EJECUCION (skip APELACION — side edge)
+  {
+    const b = bottom('SENTENCIA_1'), t2 = top('EJECUCION');
+    const sideX = MX - NW/2 - 16;
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(sideX, b.y);
+    ctx.lineTo(sideX, t2.y);
+    ctx.lineTo(t2.x, t2.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(t2.x,t2.y);
+    ctx.lineTo(t2.x-4,t2.y-7); ctx.lineTo(t2.x+4,t2.y-7); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // NOTIFICANDO → CADUCIDAD (label "también")
+  {
+    const r = right('NOTIFICANDO');
+    const t2 = top('CADUCIDAD');
+    ctx.beginPath();
+    ctx.moveTo(r.x, r.y);
+    ctx.lineTo(t2.x, r.y);
+    ctx.lineTo(t2.x, t2.y);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(t2.x, t2.y);
+    ctx.lineTo(t2.x-4,t2.y-7); ctx.lineTo(t2.x+4,t2.y-7); ctx.closePath();
+    ctx.fillStyle = COL.dim; ctx.fill();
+  }
+
+  // ── draw all nodes on top ──
+  Object.keys(nodes).forEach(drawNode);
+
+})();
+</script>

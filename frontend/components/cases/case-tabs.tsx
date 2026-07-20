@@ -3,20 +3,24 @@
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { DeadlinesTab } from '@/components/deadlines/deadlines-tab'
+import { LifecycleTab } from '@/components/cases/lifecycle-tab'
 
 interface CaseTabsProps {
   caseId: string
   expedienteContent: React.ReactNode
+  currentStatus: { code: string; label: string }
+  canTransition: boolean
 }
 
 const TABS = [
   { id: 'expediente', label: 'Expediente' },
   { id: 'plazos',     label: 'Plazos' },
+  { id: 'historial',  label: 'Historial' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
-export function CaseTabs({ caseId, expedienteContent }: CaseTabsProps) {
+export function CaseTabs({ caseId, expedienteContent, currentStatus, canTransition }: CaseTabsProps) {
   const [active, setActive] = useState<TabId>('expediente')
 
   return (
@@ -40,6 +44,9 @@ export function CaseTabs({ caseId, expedienteContent }: CaseTabsProps) {
 
       {active === 'expediente' && expedienteContent}
       {active === 'plazos'     && <DeadlinesTab caseId={caseId} />}
+      {active === 'historial'  && (
+        <LifecycleTab caseId={caseId} currentStatus={currentStatus} canTransition={canTransition} />
+      )}
     </div>
   )
 }
