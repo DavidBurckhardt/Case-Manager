@@ -140,7 +140,7 @@
 <div class="page">
 
   <header class="doc-header">
-    <p class="eyebrow">Core feature &nbsp;·&nbsp; 19 julio 2026 &nbsp;·&nbsp; v1.0</p>
+    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.1</p>
     <h1>Pipeline de Ingesta y Motor de Plazos</h1>
     <p class="doc-subtitle">Cómo un archivo PDF pasa de la pantalla de carga a un expediente estructurado con plazos judiciales calculados automáticamente.</p>
     <div class="chips">
@@ -520,6 +520,19 @@ case_file_parties          — demandados + abogados</code></pre>
         Multipart/form-data. Campo: <code>files</code> (1–20 archivos). Formatos: PDF, JPG, PNG, DOCX. Límite por archivo: <code>MAX_DOCUMENT_SIZE_MB</code> (default 25 MB).<br>
         Respuesta: <code>{ documents: DocumentRow[], errors: { file, error }[] }</code>.<br>
         Requiere <code>Authorization: Bearer &lt;jwt&gt;</code>.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/cases/:id/documents</span>
+      </div>
+      <div class="endpoint-desc">
+        Adjunta nuevos documentos a un expediente ya existente y re-dispara el pipeline completo sobre todos sus documentos.<br><br>
+        <strong>Diferencia clave respecto a <code>/documents/upload</code>:</strong> no crea un expediente placeholder; en cambio, asocia los archivos al <code>caseId</code> dado y re-extrae el caso entero (nuevos + existentes en conjunto). Esto es necesario porque <code>enrichCase</code> reemplaza las tablas satélite — enviar solo el nuevo PDF borraría los datos extraídos del resto.<br><br>
+        El <code>processing_phase</code> del expediente vuelve a <code>'analyzing'</code> antes del enqueue. Sin ese flip, el idempotency check del consumer descartaría el job como no-op.<br><br>
+        Misma autenticación que el resto: <code>Authorization: Bearer &lt;jwt&gt;</code>. Requiere ser creador, abogado responsable, socio o admin del caso — verificado por <code>CaseAccessService</code> antes de aceptar los archivos.
       </div>
     </div>
 

@@ -2,9 +2,11 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ArrowLeft, FileText, User, Building2, Shield, AlertTriangle,
-  Stethoscope, Scale, Calendar, Files, AlertCircle, Loader2, Eye,
+  Stethoscope, Scale, Calendar, Files, AlertCircle, Loader2, Eye, Upload,
 } from 'lucide-react'
 import { getCaseFileById } from '@/services/case-file.service'
+import { listCaseFileDocuments } from '@/services/document.service'
+import { DocumentUploaderForCase } from '@/components/documents/document-uploader-for-case'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CaseTabs } from '@/components/cases/case-tabs'
@@ -24,6 +26,25 @@ function fmtDate(v: string | null | undefined) {
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v)
+}
+
+function fmtSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const DOC_STATUS_LABELS: Record<string, string> = {
+  UPLOADED:             'Subido',
+  METADATA_EXTRACTION:  'Extrayendo',
+  CASE_GENERATION:      'Generando',
+  COMPLETED:            'Procesado',
+  ERROR:                'Error',
+}
+
+const DOC_STATUS_STYLES: Record<string, string> = {
+  COMPLETED: 'bg-green-500/15 text-green-700',
+  ERROR:     'bg-destructive/15 text-destructive',
 }
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
@@ -80,9 +101,10 @@ export default async function CaseDetailPage({ params }: Props) {
     notFound()
   }
 
-  const [overdueCount, role] = await Promise.all([
+  const [overdueCount, role, documents] = await Promise.all([
     countOverdueDeadlines(id),
     getCurrentUserRole(),
+    listCaseFileDocuments(id),
   ])
   // Mover el expediente de estado es una decisión procesal: solo socios y admin.
   const canTransition = role === 'admin' || role === 'socio'
@@ -320,6 +342,46 @@ export default async function CaseDetailPage({ params }: Props) {
     </div>
   )
 
+  const documentosContent = (
+    <div className="space-y-6">
+      <Section icon={Upload} title="Agregar Documentos">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Los documentos nuevos se adjuntan a este expediente y disparan un nuevo análisis
+          por IA sobre el expediente completo.
+        </p>
+        <DocumentUploaderForCase caseId={id} />
+      </Section>
+
+      <Section icon={Files} title={`Documentos del Expediente (${documents.length})`}>
+        {documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Este expediente todavía no tiene documentos.</p>
+        ) : (
+          <ul className="divide-y">
+            {documents.map((doc) => (
+              <li key={doc.id} className="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{doc.original_filename}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {fmtSize(doc.file_size)} · {fmtDate(doc.uploaded_at)}
+                  </p>
+                  {doc.processing_error && (
+                    <p className="mt-0.5 text-xs text-destructive">{doc.processing_error}</p>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn('shrink-0 border-0 text-xs', DOC_STATUS_STYLES[doc.processing_status] ?? 'bg-muted')}
+                >
+                  {DOC_STATUS_LABELS[doc.processing_status] ?? doc.processing_status}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  )
+
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
       <div className="space-y-3">
@@ -356,6 +418,7 @@ export default async function CaseDetailPage({ params }: Props) {
       <CaseTabs
         caseId={id}
         expedienteContent={expedienteContent}
+        documentosContent={documentosContent}
         currentStatus={{ code: current_status.code, label: current_status.label }}
         canTransition={canTransition}
       />

@@ -377,23 +377,24 @@
 
   <!-- ── Header ── -->
   <header class="doc-header">
-    <p class="eyebrow">Migración 24 &nbsp;·&nbsp; 19 julio 2026 &nbsp;·&nbsp; v1.0</p>
+    <p class="eyebrow">Migraciones 24–25 &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.1</p>
     <h1>Ciclo de Vida del Expediente</h1>
     <p class="doc-subtitle">State machine judicial sobre el proceso CPCCN para el Generador de Expedientes. Implementa transiciones automáticas por pipeline e historial de auditoría con control de acceso por rol.</p>
     <div class="chips">
       <span class="chip">Backend · NestJS</span>
       <span class="chip">Frontend · Next.js 16</span>
       <span class="chip">Base de datos · Supabase (PostgreSQL)</span>
-      <span class="chip chip-accent">Migración 24</span>
-      <span class="chip chip-success">7/7 pruebas ✓</span>
+      <span class="chip chip-accent">Migraciones 24–25</span>
+      <span class="chip chip-success">10/10 pruebas ✓</span>
     </div>
   </header>
 
   <!-- ── Resumen ── -->
   <section>
     <h2>Resumen</h2>
-    <p>Cada expediente judicial tiene un estado procesal que avanza conforme a las reglas del CPCCN. Esta feature reemplaza los 11 estados genéricos en inglés por 13 estados en español con el proceso judicial argentino real, agrega un grafo de transiciones válidas, y registra en auditoría cada cambio de estado indicando si fue automático (disparado por el pipeline de IA) o manual (acción de un usuario con justificación).</p>
-    <p>Los expedientes ya existentes en la base fueron remapeados automáticamente a sus equivalentes en español durante la migración, sin pérdida de datos.</p>
+    <p>Cada expediente judicial tiene un estado procesal que avanza conforme a las reglas del CPCCN. La migración 24 reemplazó los 11 estados genéricos en inglés por 13 estados en español con el proceso judicial argentino real, agregó un grafo de transiciones válidas, y registra en auditoría cada cambio de estado indicando si fue automático (disparado por el pipeline de IA) o manual (acción de un usuario con justificación).</p>
+    <p>La migración 25 agrega dos estados que faltaban en el grafo: <strong>CONTESTADO</strong> (entre EN_TRASLADO y PRUEBA) y <strong>AUTOS_PARA_SENTENCIA</strong> (entre ALEGATOS y SENTENCIA_1), con sus 6 transiciones correspondientes. Los estados nuevos son solo manuales — ningún <code>act_type</code> del LLM los dispara automáticamente.</p>
+    <p>Los expedientes ya existentes en la base fueron remapeados automáticamente a sus equivalentes en español durante la migración 24, sin pérdida de datos.</p>
   </section>
 
   <!-- ── DB ── -->
@@ -401,19 +402,21 @@
     <h2>Cambios en base de datos</h2>
     <div class="card-grid">
       <div class="card">
-        <div class="card-label">Modificado</div>
+        <div class="card-label">Modificado (mig. 24 + 25)</div>
         <h3>workflow_states</h3>
         <ul>
           <li>11 estados en inglés <strong>eliminados</strong></li>
-          <li>13 estados CPCCN <strong>insertados</strong></li>
-          <li>Expedientes existentes <strong>remapeados</strong></li>
+          <li>13 estados CPCCN insertados (mig. 24)</li>
+          <li>+2 estados nuevos (mig. 25)</li>
+          <li><strong>15 estados</strong> en total</li>
         </ul>
       </div>
       <div class="card">
-        <div class="card-label">Tabla nueva</div>
+        <div class="card-label">Tabla nueva (mig. 24 + 25)</div>
         <h3>workflow_allowed_transitions</h3>
         <ul>
-          <li>18 aristas del grafo</li>
+          <li>18 aristas (mig. 24) + 6 nuevas (mig. 25)</li>
+          <li><strong>24 aristas</strong> en total</li>
           <li>Solo lectura para <code>authenticated</code></li>
           <li>Validación de toda transición</li>
         </ul>
@@ -438,32 +441,51 @@
             <th>Label</th>
             <th>sort_order</th>
             <th>Terminal</th>
+            <th>Migración</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>INICIADO</code></td><td>Iniciado</td><td>10</td><td>—</td></tr>
-          <tr><td><code>ADMITIDO</code></td><td>Admitido</td><td>20</td><td>—</td></tr>
-          <tr><td><code>NOTIFICANDO</code></td><td>Notificando</td><td>30</td><td>—</td></tr>
-          <tr><td><code>REBELDE</code></td><td>En rebeldía</td><td>35</td><td>—</td></tr>
-          <tr><td><code>EN_TRASLADO</code></td><td>En traslado</td><td>40</td><td>—</td></tr>
-          <tr><td><code>PRUEBA</code></td><td>Período de prueba</td><td>50</td><td>—</td></tr>
-          <tr><td><code>ALEGATOS</code></td><td>Alegatos</td><td>60</td><td>—</td></tr>
-          <tr><td><code>SENTENCIA_1</code></td><td>Sentencia 1ª instancia</td><td>70</td><td>—</td></tr>
-          <tr><td><code>APELACION</code></td><td>Apelación</td><td>80</td><td>—</td></tr>
-          <tr><td><code>EJECUCION</code></td><td>Ejecución</td><td>90</td><td>—</td></tr>
-          <tr><td><code>ACUERDO</code></td><td>Acuerdo/Conciliación</td><td>95</td><td>✓ positivo</td></tr>
-          <tr><td><code>CADUCIDAD</code></td><td>Caducidad declarada</td><td>96</td><td>✓ negativo</td></tr>
-          <tr><td><code>CERRADO</code></td><td>Cerrado</td><td>100</td><td>✓ positivo</td></tr>
+          <tr><td><code>INICIADO</code></td><td>Iniciado</td><td>10</td><td>—</td><td>24</td></tr>
+          <tr><td><code>ADMITIDO</code></td><td>Admitido</td><td>20</td><td>—</td><td>24</td></tr>
+          <tr><td><code>NOTIFICANDO</code></td><td>Notificando</td><td>30</td><td>—</td><td>24</td></tr>
+          <tr><td><code>REBELDE</code></td><td>En rebeldía</td><td>35</td><td>—</td><td>24</td></tr>
+          <tr><td><code>EN_TRASLADO</code></td><td>En traslado</td><td>40</td><td>—</td><td>24</td></tr>
+          <tr style="background:var(--accent-soft)"><td><code>CONTESTADO</code></td><td>Contestado</td><td>45</td><td>—</td><td>25 ✦</td></tr>
+          <tr><td><code>PRUEBA</code></td><td>Período de prueba</td><td>50</td><td>—</td><td>24</td></tr>
+          <tr><td><code>ALEGATOS</code></td><td>Alegatos</td><td>60</td><td>—</td><td>24</td></tr>
+          <tr style="background:var(--accent-soft)"><td><code>AUTOS_PARA_SENTENCIA</code></td><td>Autos para sentencia</td><td>65</td><td>—</td><td>25 ✦</td></tr>
+          <tr><td><code>SENTENCIA_1</code></td><td>Sentencia 1ª instancia</td><td>70</td><td>—</td><td>24</td></tr>
+          <tr><td><code>APELACION</code></td><td>Apelación</td><td>80</td><td>—</td><td>24</td></tr>
+          <tr><td><code>EJECUCION</code></td><td>Ejecución</td><td>90</td><td>—</td><td>24</td></tr>
+          <tr><td><code>ACUERDO</code></td><td>Acuerdo/Conciliación</td><td>95</td><td>✓ positivo</td><td>24</td></tr>
+          <tr><td><code>CADUCIDAD</code></td><td>Caducidad declarada</td><td>96</td><td>✓ negativo</td><td>24</td></tr>
+          <tr><td><code>CERRADO</code></td><td>Cerrado</td><td>100</td><td>✓ positivo</td><td>24</td></tr>
         </tbody>
       </table>
     </div>
+
+    <h3>Transiciones agregadas en migración 25</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Desde</th><th>Hacia</th><th>Notas</th></tr></thead>
+        <tbody>
+          <tr><td><code>EN_TRASLADO</code></td><td><code>CONTESTADO</code></td><td>El demandado contestó la demanda</td></tr>
+          <tr><td><code>CONTESTADO</code></td><td><code>PRUEBA</code></td><td>Apertura a prueba post-contestación</td></tr>
+          <tr><td><code>CONTESTADO</code></td><td><code>CADUCIDAD</code></td><td>Instancia abierta puede caducar</td></tr>
+          <tr><td><code>PRUEBA</code></td><td><code>AUTOS_PARA_SENTENCIA</code></td><td>Prueba cerrada, en despacho (sin alegatos)</td></tr>
+          <tr><td><code>ALEGATOS</code></td><td><code>AUTOS_PARA_SENTENCIA</code></td><td>Alegatos presentados, en despacho</td></tr>
+          <tr><td><code>AUTOS_PARA_SENTENCIA</code></td><td><code>SENTENCIA_1</code></td><td>Sentencia dictada</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--text-muted);">La transición directa <code>PRUEBA → ALEGATOS</code> se conservó — en muchos casos el expediente no pasa por <code>AUTOS_PARA_SENTENCIA</code> antes de los alegatos.</p>
   </section>
 
   <!-- ── Diagrama ── -->
   <section>
     <h2>Grafo de estados</h2>
     <div class="diagram-wrap">
-      <canvas id="diagram" width="540" height="870"></canvas>
+      <canvas id="diagram" width="540" height="1060"></canvas>
     </div>
     <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--text-muted);">
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#4B82C4;margin-right:5px;"></span>Estado activo</span>
@@ -508,6 +530,23 @@
           <li>Llama <code>transitionFromActs()</code> post-extracción</li>
           <li>No propaga errores del lifecycle</li>
         </ul>
+      </div>
+    </div>
+    <div class="card-grid" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-label">Nuevo (mig. 25)</div>
+        <h3>CaseAccessService</h3>
+        <ul>
+          <li>Extraído de <code>LifecycleController</code></li>
+          <li>Réplica TS de <code>can_access_case()</code></li>
+          <li>Compartido entre <code>LifecycleController</code> y <code>CaseDocumentsController</code></li>
+          <li>Lanza 404 / 403 según corresponda</li>
+        </ul>
+      </div>
+      <div class="card" style="grid-column:span 2;">
+        <div class="card-label">Nota</div>
+        <h3>CONTESTADO y AUTOS_PARA_SENTENCIA — sin auto-trigger</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin:0;">Ningún <code>act_type</code> del LLM mapea a estos estados en <code>ACT_TO_STATE</code>. Los tipos existentes abren plazos (traslado, apertura a prueba, sentencia) — no cierran etapas. Inferirlos de un documento sería inventar un hecho procesal. Solo se alcanzan por transición manual. Si en el futuro se agrega un <code>act_type: 'CONTESTACION_DEMANDA'</code>, la entrada va en <code>lifecycle.service.ts</code> línea ~61.</p>
       </div>
     </div>
 
@@ -555,6 +594,20 @@
         Ejecuta una transición manual. Body: <code>{ to_state_code: string, justification: string }</code>.<br>
         <code>justification</code> es obligatorio — el endpoint rechaza la petición si está vacío.<br>
         Requiere que el usuario sea creador, abogado responsable, socio o admin del caso.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/cases/:id/documents</span>
+      </div>
+      <div class="endpoint-desc">
+        Adjunta uno o más documentos a un expediente existente y re-dispara la extracción LLM sobre <strong>todos</strong> los documentos del caso (no solo los nuevos).<br>
+        Multipart/form-data, campo <code>files</code>, mismo contrato que <code>/documents/upload</code>.<br>
+        La re-extracción se hace sobre el batch completo porque <code>enrichCase</code> reemplaza las tablas satélite — enviar solo el PDF nuevo borraría los datos que ese PDF no menciona.<br>
+        El <code>processing_phase</code> del expediente vuelve a <code>'analyzing'</code> antes de publicar el job, de lo contrario el idempotency check del pipeline lo descartaría como no-op.<br>
+        Requiere ser creador, abogado responsable, socio o admin del caso.
       </div>
     </div>
 
@@ -633,10 +686,33 @@ NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
         <div class="card-label">Modificado</div>
         <h3>CaseTabs + ficha</h3>
         <ul>
-          <li>Tab "Historial" agregado</li>
+          <li>Tab "Historial" (mig. 24)</li>
+          <li>Tab "Documentos" (mig. 25) ✦</li>
           <li><code>LifecycleBadge</code> en el header</li>
-          <li>Props <code>currentStatus</code> y <code>canTransition</code></li>
-          <li><code>router.refresh()</code> post-transición</li>
+          <li>Props <code>currentStatus</code>, <code>canTransition</code>, <code>documentosContent</code></li>
+          <li><code>router.refresh()</code> post-transición y post-upload</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card-grid" style="margin-top:16px;">
+      <div class="card">
+        <div class="card-label">Nuevo (mig. 25)</div>
+        <h3>DocumentUploaderForCase</h3>
+        <ul>
+          <li>Apunta a <code>POST /cases/:id/documents</code></li>
+          <li>Sin redirect — el usuario ya está en la ficha</li>
+          <li>Spinner y mensaje inline al completar</li>
+          <li><code>router.refresh()</code> actualiza la lista sin recargar la página</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Nueva (mig. 25)</div>
+        <h3>Pestaña "Documentos"</h3>
+        <ul>
+          <li>Uploader con drop zone</li>
+          <li>Lista de documentos del caso con status y tamaño</li>
+          <li>Server Component — se actualiza con <code>router.refresh()</code></li>
+          <li>Disponible para todos los roles con acceso al caso</li>
         </ul>
       </div>
     </div>
@@ -695,6 +771,27 @@ NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
           <div class="test-desc">El tab Historial carga, el estado y el historial son visibles, pero no aparece la sección "Cambiar estado a".</div>
         </div>
       </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">CONTESTADO aparece como destino desde EN_TRASLADO</div>
+          <div class="test-desc">Con expediente en "En traslado", el selector muestra exactamente: Período de prueba, Acuerdo/Conciliación, Caducidad declarada, Contestado.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">AUTOS_PARA_SENTENCIA aparece desde PRUEBA y ALEGATOS</div>
+          <div class="test-desc">Desde "Período de prueba": Alegatos, Caducidad declarada, Autos para sentencia. Desde "Alegatos": Sentencia 1ª instancia, Caducidad declarada, Autos para sentencia.</div>
+        </div>
+      </div>
+      <div class="test-row">
+        <div class="test-check">✓</div>
+        <div>
+          <div class="test-name">Recorrido completo EN_TRASLADO → CONTESTADO → PRUEBA → ALEGATOS → AUTOS_PARA_SENTENCIA</div>
+          <div class="test-desc">Cada salto manual registrado en el historial con fecha, tipo MANUAL, usuario y justificación. El historial anterior (AUTO) se conserva intacto.</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -704,7 +801,7 @@ NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
 (function () {
   const canvas = document.getElementById('diagram');
   const dpr = window.devicePixelRatio || 1;
-  const W = 540, H = 870;
+  const W = 540, H = 1060;
   canvas.width  = W * dpr;
   canvas.height = H * dpr;
   canvas.style.width  = W + 'px';
@@ -712,46 +809,36 @@ NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // ── tokens from CSS vars ──
   const style = getComputedStyle(document.documentElement);
   const t = (v) => style.getPropertyValue(v).trim();
-
   const COL = {
-    active:   t('--blue'),
-    activeBg: t('--blue-soft') || '#162038',
-    good:     t('--green'),
-    goodBg:   t('--green-soft') || '#0E2518',
-    bad:      t('--red'),
-    badBg:    t('--red-soft') || '#2A1010',
-    special:  t('--accent'),
-    specialBg:t('--accent-soft') || '#2A2010',
-    border:   t('--border'),
-    text:     t('--text'),
-    muted:    t('--text-muted'),
-    dim:      t('--text-dim'),
+    active:    t('--blue'),   activeBg:   t('--blue-soft')   || '#162038',
+    good:      t('--green'),  goodBg:     t('--green-soft')  || '#0E2518',
+    bad:       t('--red'),    badBg:      t('--red-soft')    || '#2A1010',
+    special:   t('--accent'), specialBg:  t('--accent-soft') || '#2A2010',
+    dim:       t('--text-dim'),
   };
 
-  // ── node layout ──
   const NW = 150, NH = 32, NR = 6;
-  // main column center x
-  const MX = 150;
-  // right branch center x
-  const BX = 390;
+  const MX = 150, BX = 390;
 
+  // ── layout (mig. 25: CONTESTADO y AUTOS_PARA_SENTENCIA insertados) ──
   const nodes = {
-    INICIADO:    { x: MX,  y: 40,  label: 'Iniciado',            type: 'active' },
-    ADMITIDO:    { x: MX,  y: 115, label: 'Admitido',            type: 'active' },
-    NOTIFICANDO: { x: MX,  y: 190, label: 'Notificando',         type: 'active' },
-    REBELDE:     { x: BX,  y: 250, label: 'En rebeldía',         type: 'special' },
-    EN_TRASLADO: { x: MX,  y: 330, label: 'En traslado',         type: 'active' },
-    PRUEBA:      { x: MX,  y: 430, label: 'Período de prueba',   type: 'active' },
-    ALEGATOS:    { x: MX,  y: 510, label: 'Alegatos',            type: 'active' },
-    SENTENCIA_1: { x: MX,  y: 590, label: 'Sentencia 1ª inst.',  type: 'active' },
-    APELACION:   { x: MX,  y: 670, label: 'Apelación',           type: 'active' },
-    EJECUCION:   { x: MX,  y: 750, label: 'Ejecución',           type: 'active' },
-    CERRADO:     { x: MX,  y: 830, label: 'Cerrado',             type: 'good' },
-    ACUERDO:     { x: BX,  y: 590, label: 'Acuerdo',             type: 'good' },
-    CADUCIDAD:   { x: BX,  y: 430, label: 'Caducidad',           type: 'bad' },
+    INICIADO:             { x: MX, y: 44,   label: 'Iniciado',             type: 'active'  },
+    ADMITIDO:             { x: MX, y: 119,  label: 'Admitido',             type: 'active'  },
+    NOTIFICANDO:          { x: MX, y: 194,  label: 'Notificando',          type: 'active'  },
+    REBELDE:              { x: BX, y: 254,  label: 'En rebeldía',          type: 'special' },
+    EN_TRASLADO:          { x: MX, y: 319,  label: 'En traslado',          type: 'active'  },
+    CONTESTADO:           { x: MX, y: 404,  label: 'Contestado',           type: 'active'  },
+    PRUEBA:               { x: MX, y: 489,  label: 'Período de prueba',    type: 'active'  },
+    CADUCIDAD:            { x: BX, y: 489,  label: 'Caducidad',            type: 'bad'     },
+    ALEGATOS:             { x: MX, y: 574,  label: 'Alegatos',             type: 'active'  },
+    AUTOS_PARA_SENTENCIA: { x: MX, y: 659,  label: 'Autos para sentencia', type: 'active'  },
+    SENTENCIA_1:          { x: MX, y: 749,  label: 'Sentencia 1ª inst.',   type: 'active'  },
+    ACUERDO:              { x: BX, y: 749,  label: 'Acuerdo',              type: 'good'    },
+    APELACION:            { x: MX, y: 829,  label: 'Apelación',            type: 'active'  },
+    EJECUCION:            { x: MX, y: 909,  label: 'Ejecución',            type: 'active'  },
+    CERRADO:              { x: MX, y: 989,  label: 'Cerrado',              type: 'good'    },
   };
 
   function nodeColors(type) {
@@ -764,192 +851,115 @@ NOTIFICANDO → EN_TRASLADO AUTO · TRASLADO_DEMANDA</code></pre>
   function drawNode(id) {
     const n = nodes[id];
     const c = nodeColors(n.type);
-    const x = n.x - NW/2, y = n.y - NH/2;
     ctx.beginPath();
-    ctx.roundRect(x, y, NW, NH, NR);
-    ctx.fillStyle = c.fill;
-    ctx.fill();
-    ctx.strokeStyle = c.stroke;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
+    ctx.roundRect(n.x - NW/2, n.y - NH/2, NW, NH, NR);
+    ctx.fillStyle = c.fill; ctx.fill();
+    ctx.strokeStyle = c.stroke; ctx.lineWidth = 1.2; ctx.stroke();
     ctx.fillStyle = c.text;
     ctx.font = '12px -apple-system, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(n.label, n.x, n.y);
   }
 
-  function arrow(x1, y1, x2, y2, curved) {
-    ctx.beginPath();
-    if (curved) {
-      const mx = (x1 + x2) / 2;
-      ctx.moveTo(x1, y1);
-      ctx.bezierCurveTo(x1, y1 + 30, x2, y2 - 30, x2, y2);
-    } else {
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-    }
-    ctx.strokeStyle = COL.dim;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // arrowhead
-    const ang = Math.atan2(y2 - (curved ? y2-30 : y1), x2 - (curved ? x2 : x1));
-    const aLen = 7;
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(x2 - aLen * Math.cos(ang - 0.4), y2 - aLen * Math.sin(ang - 0.4));
-    ctx.lineTo(x2 - aLen * Math.cos(ang + 0.4), y2 - aLen * Math.sin(ang + 0.4));
-    ctx.closePath();
-    ctx.fillStyle = COL.dim;
-    ctx.fill();
-  }
-
-  function bottom(id) { return { x: nodes[id].x, y: nodes[id].y + NH/2 }; }
-  function top(id)    { return { x: nodes[id].x, y: nodes[id].y - NH/2 }; }
-  function right(id)  { return { x: nodes[id].x + NW/2, y: nodes[id].y }; }
-  function left(id)   { return { x: nodes[id].x - NW/2, y: nodes[id].y }; }
-
-  // ── straight main flow edges ──
-  const mainFlow = ['INICIADO','ADMITIDO','NOTIFICANDO','EN_TRASLADO','PRUEBA','ALEGATOS','SENTENCIA_1','APELACION','EJECUCION','CERRADO'];
-  for (let i = 0; i < mainFlow.length - 1; i++) {
-    const b = bottom(mainFlow[i]), t2 = top(mainFlow[i+1]);
-    arrow(b.x, b.y, t2.x, t2.y);
-  }
-
-  // NOTIFICANDO → REBELDE (right then down)
-  {
-    const r = right('NOTIFICANDO'), tl = left('REBELDE');
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(tl.x - 10, r.y);
-    ctx.lineTo(tl.x - 10, tl.y);
-    ctx.lineTo(tl.x, tl.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    // arrowhead pointing right
-    const x2 = tl.x, y2 = tl.y;
-    ctx.beginPath(); ctx.moveTo(x2,y2);
-    ctx.lineTo(x2-7,y2-4); ctx.lineTo(x2-7,y2+4); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // REBELDE → PRUEBA (down then left)
-  {
-    const b = bottom('REBELDE'), tl = top('PRUEBA');
-    const midY = (b.y + tl.y) / 2;
-    ctx.beginPath();
-    ctx.moveTo(b.x, b.y);
-    ctx.lineTo(b.x, midY);
-    ctx.lineTo(tl.x, midY);
-    ctx.lineTo(tl.x, tl.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(tl.x, tl.y);
-    ctx.lineTo(tl.x-4,tl.y-7); ctx.lineTo(tl.x+4,tl.y-7); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // EN_TRASLADO → CADUCIDAD
-  {
-    const r = right('EN_TRASLADO'), tl = left('CADUCIDAD');
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(tl.x - 8, r.y);
-    ctx.lineTo(tl.x - 8, tl.y);
-    ctx.lineTo(tl.x, tl.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
-    ctx.lineTo(tl.x-7,tl.y-4); ctx.lineTo(tl.x-7,tl.y+4); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // PRUEBA → CADUCIDAD (up-right)
-  {
-    const r = right('PRUEBA'), b = bottom('CADUCIDAD');
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(b.x, r.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(b.x,b.y);
-    ctx.lineTo(b.x-4,b.y-7); ctx.lineTo(b.x+4,b.y-7); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // ALEGATOS → CADUCIDAD (right, up, then arrow up)
-  {
-    const r = right('ALEGATOS');
-    const b = bottom('CADUCIDAD');
-    const railX = BX + NW/2 + 18;
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(railX, r.y);
-    ctx.lineTo(railX, b.y + 8);
-    ctx.lineTo(b.x + NW/2, b.y + 8);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(b.x + NW/2, b.y + 8);
-    ctx.lineTo(b.x + NW/2 - 4, b.y + 8 - 6);
-    ctx.lineTo(b.x + NW/2 + 4, b.y + 8 - 6);
+  function arrowHead(x2, y2, fromX, fromY) {
+    const ang = Math.atan2(y2 - fromY, x2 - fromX);
+    ctx.beginPath(); ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - 7*Math.cos(ang-0.4), y2 - 7*Math.sin(ang-0.4));
+    ctx.lineTo(x2 - 7*Math.cos(ang+0.4), y2 - 7*Math.sin(ang+0.4));
     ctx.closePath(); ctx.fillStyle = COL.dim; ctx.fill();
   }
 
-  // EN_TRASLADO → ACUERDO (down-right)
-  {
-    const r = right('EN_TRASLADO'), tl = left('ACUERDO');
-    const midX = (r.x + tl.x) / 2 + 20;
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(midX, r.y);
-    ctx.lineTo(midX, tl.y);
-    ctx.lineTo(tl.x, tl.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
-    ctx.lineTo(tl.x-7,tl.y-4); ctx.lineTo(tl.x-7,tl.y+4); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
+  function bot(id)   { return { x: nodes[id].x,        y: nodes[id].y + NH/2 }; }
+  function top2(id)  { return { x: nodes[id].x,        y: nodes[id].y - NH/2 }; }
+  function rgt(id)   { return { x: nodes[id].x + NW/2, y: nodes[id].y }; }
+  function lft(id)   { return { x: nodes[id].x - NW/2, y: nodes[id].y }; }
+
+  function solidLine(...pts) {
+    ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+    for (let i=2; i<pts.length; i+=2) ctx.lineTo(pts[i], pts[i+1]);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([]); ctx.stroke();
+  }
+  function dashedLine(...pts) {
+    ctx.beginPath(); ctx.moveTo(pts[0], pts[1]);
+    for (let i=2; i<pts.length; i+=2) ctx.lineTo(pts[i], pts[i+1]);
+    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([3,3]); ctx.stroke();
+    ctx.setLineDash([]);
   }
 
+  // ── main column (solid arrows) ──
+  const col = ['INICIADO','ADMITIDO','NOTIFICANDO','EN_TRASLADO','CONTESTADO','PRUEBA','ALEGATOS','AUTOS_PARA_SENTENCIA','SENTENCIA_1','APELACION','EJECUCION','CERRADO'];
+  for (let i=0; i<col.length-1; i++) {
+    const b=bot(col[i]), tp=top2(col[i+1]);
+    solidLine(b.x, b.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, b.x, b.y);
+  }
+
+  // ── bypass (dashed, left rail) ──
+  const sideX = MX - NW/2 - 18;
+  // EN_TRASLADO → PRUEBA (skip CONTESTADO)
+  { const b=bot('EN_TRASLADO'), tp=top2('PRUEBA');
+    dashedLine(b.x, b.y, sideX, b.y, sideX, tp.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, sideX, tp.y); }
+  // PRUEBA → AUTOS_PARA_SENTENCIA (skip ALEGATOS)
+  { const b=bot('PRUEBA'), tp=top2('AUTOS_PARA_SENTENCIA');
+    const sx = sideX - 10;
+    dashedLine(b.x, b.y, sx, b.y, sx, tp.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, sx, tp.y); }
+  // ALEGATOS → SENTENCIA_1 (skip AUTOS_PARA_SENTENCIA)
+  { const b=bot('ALEGATOS'), tp=top2('SENTENCIA_1');
+    const sx = sideX - 20;
+    dashedLine(b.x, b.y, sx, b.y, sx, tp.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, sx, tp.y); }
+  // SENTENCIA_1 → EJECUCION (skip APELACION)
+  { const b=bot('SENTENCIA_1'), tp=top2('EJECUCION');
+    const sx = sideX - 30;
+    dashedLine(b.x, b.y, sx, b.y, sx, tp.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, sx, tp.y); }
+
+  // ── NOTIFICANDO → REBELDE ──
+  { const r=rgt('NOTIFICANDO'), l=lft('REBELDE');
+    solidLine(r.x, r.y, l.x-10, r.y, l.x-10, l.y, l.x, l.y);
+    arrowHead(l.x, l.y, l.x-7, l.y); }
+
+  // ── REBELDE → PRUEBA ──
+  { const b=bot('REBELDE'), tp=top2('PRUEBA');
+    const midY = (b.y+tp.y)/2;
+    solidLine(b.x, b.y, b.x, midY, tp.x, midY, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, tp.x, midY); }
+
+  // ── CADUCIDAD arrows (right branch) ──
+  // NOTIFICANDO → CADUCIDAD
+  { const r=rgt('NOTIFICANDO'), tp=top2('CADUCIDAD');
+    dashedLine(r.x, r.y, tp.x, r.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, tp.x, r.y); }
+  // EN_TRASLADO → CADUCIDAD
+  { const r=rgt('EN_TRASLADO'), l=lft('CADUCIDAD');
+    solidLine(r.x, r.y, l.x-8, r.y, l.x-8, l.y, l.x, l.y);
+    arrowHead(l.x, l.y, l.x-7, l.y); }
+  // CONTESTADO → CADUCIDAD (new)
+  { const r=rgt('CONTESTADO'), l=lft('CADUCIDAD');
+    solidLine(r.x, r.y, l.x-4, r.y, l.x-4, l.y, l.x, l.y);
+    arrowHead(l.x, l.y, l.x-7, l.y); }
+  // PRUEBA → CADUCIDAD (same row)
+  { const r=rgt('PRUEBA'), l=lft('CADUCIDAD');
+    solidLine(r.x, r.y, l.x, l.y);
+    arrowHead(l.x, l.y, r.x, r.y); }
+  // ALEGATOS → CADUCIDAD
+  { const r=rgt('ALEGATOS'), b=bot('CADUCIDAD');
+    const railX = BX + NW/2 + 16;
+    dashedLine(r.x, r.y, railX, r.y, railX, b.y+8, b.x+NW/2, b.y+8);
+    arrowHead(b.x+NW/2, b.y+8, railX, b.y+8); }
+
+  // ── ACUERDO arrows ──
+  // EN_TRASLADO → ACUERDO
+  { const r=rgt('EN_TRASLADO'), l=lft('ACUERDO');
+    const midX = (r.x+l.x)/2+20;
+    solidLine(r.x, r.y, midX, r.y, midX, l.y, l.x, l.y);
+    arrowHead(l.x, l.y, l.x-7, l.y); }
   // SENTENCIA_1 → ACUERDO
-  {
-    const r = right('SENTENCIA_1'), tl = top('ACUERDO');
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(tl.x, r.y);
-    ctx.lineTo(tl.x, tl.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(tl.x,tl.y);
-    ctx.lineTo(tl.x-4,tl.y-7); ctx.lineTo(tl.x+4,tl.y-7); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // SENTENCIA_1 → EJECUCION (skip APELACION — side edge)
-  {
-    const b = bottom('SENTENCIA_1'), t2 = top('EJECUCION');
-    const sideX = MX - NW/2 - 16;
-    ctx.beginPath();
-    ctx.moveTo(b.x, b.y);
-    ctx.lineTo(sideX, b.y);
-    ctx.lineTo(sideX, t2.y);
-    ctx.lineTo(t2.x, t2.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(t2.x,t2.y);
-    ctx.lineTo(t2.x-4,t2.y-7); ctx.lineTo(t2.x+4,t2.y-7); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
-
-  // NOTIFICANDO → CADUCIDAD (label "también")
-  {
-    const r = right('NOTIFICANDO');
-    const t2 = top('CADUCIDAD');
-    ctx.beginPath();
-    ctx.moveTo(r.x, r.y);
-    ctx.lineTo(t2.x, r.y);
-    ctx.lineTo(t2.x, t2.y);
-    ctx.strokeStyle = COL.dim; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(t2.x, t2.y);
-    ctx.lineTo(t2.x-4,t2.y-7); ctx.lineTo(t2.x+4,t2.y-7); ctx.closePath();
-    ctx.fillStyle = COL.dim; ctx.fill();
-  }
+  { const r=rgt('SENTENCIA_1'), tp=top2('ACUERDO');
+    solidLine(r.x, r.y, tp.x, r.y, tp.x, tp.y);
+    arrowHead(tp.x, tp.y, tp.x, r.y); }
 
   // ── draw all nodes on top ──
   Object.keys(nodes).forEach(drawNode);

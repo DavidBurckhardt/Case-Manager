@@ -2,9 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
-  ForbiddenException,
   Get,
-  NotFoundException,
   Param,
   Post,
   UseGuards,
@@ -12,7 +10,7 @@ import {
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard'
 import { CurrentUser } from '../auth/current-user.decorator'
 import type { AuthUser } from '../auth/supabase-auth.guard'
-import { SupabaseService } from '../supabase/supabase.service'
+import { CaseAccessService } from '../auth/case-access.service'
 import { LifecycleService } from './lifecycle.service'
 
 interface TransitionBody {
@@ -25,7 +23,7 @@ interface TransitionBody {
 export class LifecycleController {
   constructor(
     private readonly lifecycle: LifecycleService,
-    private readonly supabase: SupabaseService,
+    private readonly caseAccess: CaseAccessService,
   ) {}
 
   /** Catálogo de estados con sus transiciones válidas — alimenta los botones del frontend. */
@@ -58,29 +56,8 @@ export class LifecycleController {
     )
   }
 
-  /**
-   * Misma regla que can_access_case() en la base (migración 23): creador,
-   * abogado responsable, o rol con alcance de estudio. Se replica acá porque
-   * el servicio usa el cliente service_role, que saltea RLS.
-   */
-  private async assertCaseAccess(caseId: string, userId: string): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = this.supabase.admin as any
-
-    const { data: caseFile, error } = await db
-      .from('case_files')
-      .select('created_by, responsible_attorney_id')
-      .eq('id', caseId)
-      .is('deleted_at', null)
-      .maybeSingle()
-
-    if (error || !caseFile) throw new NotFoundException('Expediente no encontrado')
-
-    if (caseFile.created_by === userId || caseFile.responsible_attorney_id === userId) return
-
-    const { data: me } = await db.from('users').select('role').eq('id', userId).maybeSingle()
-    if (me?.role === 'admin' || me?.role === 'socio') return
-
-    throw new ForbiddenException('Sin acceso a este expediente')
+  /** Delega en CaseAccessService — la regla vive en un solo lugar. */
+  private assertCaseAccess(caseId: string, userId: string): Promise<void> {
+    return this.caseAccess.assert(caseId, userId)
   }
 }

@@ -58,6 +58,15 @@ export function shortestPath(
   return null
 }
 
+/**
+ * CONTESTADO y AUTOS_PARA_SENTENCIA (migración 25) NO figuran acá a propósito:
+ * PROCEDURAL_ACT_TYPES no tiene ningún acto que signifique "la demanda fue
+ * contestada" ni "la causa quedó en despacho" — todos los act_type existentes
+ * son actos que ABREN un plazo, no que lo cierran. Mapear alguno de ellos a
+ * estos estados sería inferir un hecho procesal que el documento no afirma, así
+ * que por ahora solo se llega a ellos por transición manual. Si más adelante se
+ * agrega un act_type propio (p. ej. CONTESTACION_DEMANDA), su entrada va acá.
+ */
 const ACT_TO_STATE: ReadonlyArray<{ act: ProceduralActType; state: string }> = [
   { act: 'TRASLADO_DEMANDA',            state: 'EN_TRASLADO' },
   { act: 'APERTURA_PRUEBA',             state: 'PRUEBA' },
