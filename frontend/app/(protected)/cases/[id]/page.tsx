@@ -400,16 +400,23 @@ export default async function CaseDetailPage({ params }: Props) {
           <LifecycleBadge code={current_status.code} label={current_status.label} />
         </div>
       </div>
+      {/* ── Banner T-0 ──
+          Rojo sólido y fuera de las tabs a propósito: un plazo vencido no puede
+          depender de que alguien haga click en la pestaña correcta para
+          enterarse. No bloquea nada — el usuario sigue navegando la ficha. */}
       {overdueCount > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border-2 border-destructive/40 bg-destructive/10 px-5 py-4">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" aria-hidden="true" />
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl bg-red-600 px-5 py-4 text-white shadow-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="text-sm font-semibold text-destructive">
-              Este expediente tiene {overdueCount} plazo{overdueCount !== 1 ? 's' : ''} vencido
-              {overdueCount !== 1 ? 's' : ''} sin cumplir.
+            <p className="text-sm font-bold">
+              Este expediente tiene {overdueCount} plazo{overdueCount !== 1 ? 's' : ''} VENCIDO
+              {overdueCount !== 1 ? 'S' : ''} sin cumplir.
             </p>
-            <p className="mt-0.5 text-xs text-destructive/80">
-              Revisá la pestaña de Plazos para regularizar la situación.
+            <p className="mt-0.5 text-xs text-red-50">
+              Revisá la pestaña Plazos inmediatamente.
             </p>
           </div>
         </div>

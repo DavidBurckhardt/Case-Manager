@@ -153,6 +153,20 @@ export class PipelineService implements OnApplicationBootstrap {
     // Same contract as the deadline engine: transitionFromActs swallows its own
     // errors, so a lifecycle problem never marks the case as preview either.
     await this.lifecycle.transitionFromActs(caseId, metadata.procedural_acts ?? [])
+
+    // Documento nuevo analizado = impulso procesal. Reinicia el contador de
+    // caducidad pasiva (ver checkPassiveCaducidad en AlertsService). Falla
+    // silenciosa por el mismo motivo que los dos pasos anteriores: perder el
+    // touch solo adelanta una alerta, romper el pipeline pierde el expediente.
+    const { error: activityErr } = await this.db
+      .from('case_files')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', caseId)
+
+    if (activityErr) {
+      this.logger.error(`[${caseId}] No se pudo actualizar last_activity_at: ${activityErr.message}`)
+    }
+
     this.logger.log(`✓ Case ${caseId} enriched — processing_phase=complete`)
   }
 

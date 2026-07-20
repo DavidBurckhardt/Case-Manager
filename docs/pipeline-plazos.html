@@ -140,7 +140,7 @@
 <div class="page">
 
   <header class="doc-header">
-    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.1</p>
+    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.2</p>
     <h1>Pipeline de Ingesta y Motor de Plazos</h1>
     <p class="doc-subtitle">Cómo un archivo PDF pasa de la pantalla de carga a un expediente estructurado con plazos judiciales calculados automáticamente.</p>
     <div class="chips">
@@ -292,6 +292,18 @@ case_file_parties          — demandados + abogados</code></pre>
           </div>
         </div>
       </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2e</div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Touch de actividad procesal</div>
+          <div class="phase-desc">
+            Como último paso — después de plazos y ciclo de vida —, se actualiza <code>case_files.last_activity_at = now()</code>. Este timestamp reinicia el contador del timer de caducidad pasiva (ver sección más abajo). La actualización es fire-and-forget: un fallo solo retrasa el próximo aviso de caducidad; no marca el expediente como preview.
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -411,7 +423,8 @@ case_file_parties          — demandados + abogados</code></pre>
   <section>
     <h2>Motor de plazos (DeadlinesService)</h2>
 
-    <p>Recibe los <code>procedural_acts</code> extraídos por el LLM y genera automáticamente los plazos judiciales. Corre como último paso de la Fase 2 — si falla, el expediente igual queda en <code>complete</code> (los plazos no bloquean la extracción).</p>
+    <p>Recibe los <code>procedural_acts</code> extraídos por el LLM y genera automáticamente los plazos judiciales. Corre como penúltimo paso de la Fase 2 — si falla, el expediente igual queda en <code>complete</code> (los plazos no bloquean la extracción).</p>
+    <p>El tipo <code>CADUCIDAD_INSTANCIA</code> puede llegar a la tabla <code>case_deadlines</code> por dos vías distintas: <strong>(1) extracción LLM</strong> — el documento menciona explícitamente una intimación por falta de impulso, y entra por este flujo como cualquier otro acto; <strong>(2) timer pasivo</strong> — <code>AlertsService.checkPassiveCaducidad()</code> lo genera cuando el expediente lleva 80+ días hábiles sin actividad. Los plazos del timer se identifican por <code>triggered_by_act.source = 'PASSIVE_CADUCIDAD_TIMER'</code> y se eliminan automáticamente si el expediente vuelve a moverse.</p>
 
     <h3>Reglas CPCCN</h3>
     <div class="table-wrap">
@@ -503,7 +516,85 @@ case_file_parties          — demandados + abogados</code></pre>
         <span class="method method-post">POST</span>
         <span class="endpoint-path">/deadlines/alerts/run</span>
       </div>
-      <div class="endpoint-desc">Dispara el chequeo de alertas a demanda sin esperar el cron de las 8am. Requiere rol <code>admin</code>. Responde <code>{ checked: N, sent: M }</code>. Idempotente — correrlo dos veces seguidas da <code>sent: 0</code> en la segunda.</div>
+      <div class="endpoint-desc">Dispara el chequeo completo a demanda: primero <code>checkPassiveCaducidad()</code> y luego <code>runDailyCheck()</code>, exactamente igual que el cron. Requiere rol <code>admin</code>. Responde <code>{ checked: N, sent: M, caducidad: { scanned, created, cleared } }</code>. Idempotente — correrlo dos veces seguidas da <code>sent: 0</code> y <code>created: 0</code> en la segunda.</div>
+    </div>
+  </section>
+
+  <!-- ── Caducidad pasiva ── -->
+  <section>
+    <h2>Caducidad pasiva — timer de 90 días hábiles</h2>
+
+    <p>El art. 310 CPCCN declara caducada la instancia cuando ninguna de las partes impulsa el proceso durante 90 días hábiles. El motor de plazos original solo detectaba ese riesgo si el LLM extraía un acto <code>CADUCIDAD_INSTANCIA</code> de un documento, lo que deja ciego el caso más frecuente: el expediente que nadie tocó y sobre el cual no hay ningún documento nuevo que subir.</p>
+
+    <p>El timer pasivo cierra ese hueco. Corre al inicio de cada corrida diaria del cron (antes de <code>runDailyCheck</code>) e inspecciona todos los expedientes activos.</p>
+
+    <h3>Columna last_activity_at (migración 26)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campo</th><th>Tabla</th><th>Tipo</th><th>Default</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>last_activity_at</code></td>
+            <td><code>case_files</code></td>
+            <td><code>timestamptz NOT NULL</code></td>
+            <td><code>now()</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Se actualiza en dos puntos del backend — ninguno requiere acción manual:</p>
+    <ul style="padding-left:20px;color:var(--text-muted);font-size:13.5px;margin-bottom:16px;">
+      <li style="margin-bottom:6px;"><strong style="color:var(--text);">Pipeline (paso 2e):</strong> al completar exitosamente la extracción de cualquier documento nuevo.</li>
+      <li><strong style="color:var(--text);">LifecycleService.commit():</strong> en cada transición de estado, AUTO o MANUAL — va en el mismo <code>UPDATE</code> que <code>current_status_id</code> para que no pueda quedar desincronizado.</li>
+    </ul>
+
+    <div class="callout-blue">
+      <strong>Default seguro:</strong> para expedientes existentes antes de la migración 26, <code>last_activity_at</code> arranca en el momento de aplicar la migración. No hay forma de reconstruir la última actuación real, y arrancar el contador desde hoy falla del lado seguro: a lo sumo el sistema avisa tarde, nunca declara una caducidad que no ocurrió.
+    </div>
+
+    <h3>Lógica de checkPassiveCaducidad()</h3>
+    <div class="phase-flow" style="margin-top:16px;">
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">1</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Barrido de expedientes activos</div>
+          <div class="phase-desc">Carga todos los <code>case_files</code> con <code>deleted_at IS NULL</code> cuyo <code>current_status.is_terminal = false</code>. El filtro se aplica en memoria — mismo patrón que <code>loadPendingDeadlines</code> — para evitar los filtros frágiles de PostgREST sobre tablas embebidas.</div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">2</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Cálculo de días hábiles sin actividad</div>
+          <div class="phase-desc">Para cada expediente: <code>businessDaysUntil(last_activity_at, today, getHolidays)</code>. Usa los mismos feriados judiciales que el motor de plazos — los días de feria y feriados nacionales no cuentan como silencio procesal.</div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">3</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Apertura del plazo (≥ 80 días hábiles)</div>
+          <div class="phase-desc">
+            El umbral son <strong>80 días hábiles</strong>, no 90, a propósito: se abre el plazo 10 días hábiles antes de que realmente venza para que las alertas T-10 / T-5 / T-2 del <code>runDailyCheck</code> tengan margen de dispararse. La <code>fecha_vencimiento</code> sigue siendo <code>last_activity_at + 90 días hábiles</code> — solo el momento de creación se anticipa.<br><br>
+            Si ya existe un plazo <code>CADUCIDAD_INSTANCIA</code> en estado <code>PENDIENTE</code> para ese expediente, no se inserta un duplicado (idempotente).
+          </div>
+          <div class="phase-code">
+            <pre><code>// triggered_by_act del plazo generado por el timer:
+{
+  source:             "PASSIVE_CADUCIDAD_TIMER",
+  act_type:           "CADUCIDAD_INSTANCIA",
+  last_activity_at:   "2026-02-10",
+  dias_sin_actividad: 94
+}</code></pre>
+          </div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">4</div></div>
+        <div class="phase-content">
+          <div class="phase-title">Limpieza si el expediente volvió a moverse (&lt; 80 días)</div>
+          <div class="phase-desc">Si el expediente acaba de recibir un nuevo documento o una transición de estado, <code>diasSinActividad</code> habrá bajado por debajo de 80 y el plazo auto-generado por el timer ya no tiene sentido. Se borra <strong>solo si</strong> <code>triggered_by_act->>source = 'PASSIVE_CADUCIDAD_TIMER'</code> — los plazos <code>CADUCIDAD_INSTANCIA</code> que el LLM extrajo de un documento real (intimación del juzgado) sobreviven, porque reflejan un hecho procesal externo.</div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -533,6 +624,18 @@ case_file_parties          — demandados + abogados</code></pre>
         <strong>Diferencia clave respecto a <code>/documents/upload</code>:</strong> no crea un expediente placeholder; en cambio, asocia los archivos al <code>caseId</code> dado y re-extrae el caso entero (nuevos + existentes en conjunto). Esto es necesario porque <code>enrichCase</code> reemplaza las tablas satélite — enviar solo el nuevo PDF borraría los datos extraídos del resto.<br><br>
         El <code>processing_phase</code> del expediente vuelve a <code>'analyzing'</code> antes del enqueue. Sin ese flip, el idempotency check del consumer descartaría el job como no-op.<br><br>
         Misma autenticación que el resto: <code>Authorization: Bearer &lt;jwt&gt;</code>. Requiere ser creador, abogado responsable, socio o admin del caso — verificado por <code>CaseAccessService</code> antes de aceptar los archivos.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/deadlines/count?dias=10</span>
+      </div>
+      <div class="endpoint-desc">
+        Cuántos plazos en estado <code>PENDIENTE</code> vencen dentro de los próximos <code>dias</code> días corridos, acotado a los expedientes visibles para el usuario autenticado (creador, responsable o rol <code>socio</code>/<code>admin</code>).<br>
+        Parámetro <code>dias</code>: entero 1–365, default 10. Respuesta: <code>{ count: N }</code>.<br>
+        Alimenta la stat card <em>Vencimientos Pendientes</em> del dashboard. El valor se resuelve en el cliente al montar la página — el server component del dashboard no lo espera para renderizar.
       </div>
     </div>
 
@@ -570,8 +673,17 @@ case_file_parties          — demandados + abogados</code></pre>
   <!-- ── Gaps vs MVP ── -->
   <section>
     <h2>Gaps vs PRD MVP</h2>
-    <div class="callout-red">
-      <strong>T-10 in-app y T-0 bloqueo visual no implementados:</strong> el PRD especifica cuatro umbrales de alerta. T-5 y T-2 con email están completos. T-10 y T-0 se registran en <code>deadline_alerts</code> para trazabilidad pero no disparan ninguna acción en la UI todavía. Pendiente: banner in-app para T-10 y overlay/bloqueo visual para T-0.
+    <div class="callout-green">
+      <strong>T-0 banner implementado (v1.2):</strong> cuando algún plazo del expediente tiene <code>fecha_vencimiento ≤ hoy</code> y <code>estado = 'PENDIENTE'</code>, se muestra un banner rojo sólido (<code>bg-red-600</code>, texto blanco, <code>role="alert"</code>) fuera y encima de las tabs, visible sin necesidad de navegar a la pestaña Plazos. Se reutilizan los datos ya cargados en el server component — sin llamada extra.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Stat card "Vencimientos Pendientes" implementada (v1.2):</strong> el dashboard muestra el count real de plazos pendientes en los próximos 10 días vía <code>GET /deadlines/count?dias=10</code>. Muestra <code>0</code> cuando no hay ninguno (antes mostraba siempre <code>—</code>). El skeleton reemplaza al <code>—</code> durante la carga; en error de red vuelve a <code>—</code>.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Caducidad pasiva implementada (v1.2):</strong> el timer de 90 días hábiles corre diariamente junto al cron de alertas. El riesgo de caducidad ya no depende de que exista un documento que el LLM pueda analizar — se detecta por ausencia de actividad. Ver sección "Caducidad pasiva" más arriba.
+    </div>
+    <div class="callout" style="margin-top:12px;">
+      <strong>T-10 in-app pendiente:</strong> T-10 se registra en <code>deadline_alerts</code> para trazabilidad pero todavía no dispara ninguna notificación en la UI. El banner de T-0 cubre el caso más urgente; T-10 queda para una iteración posterior.
     </div>
     <div class="callout-red" style="margin-top:12px;">
       <strong>Campo "confianza" eliminado:</strong> el PRD menciona que extracciones con confianza &lt; 0.7 se marcan para revisión humana. Este campo fue eliminado deliberadamente porque el LLM evaluaba su propia confianza sin criterio objetivo externo — no hay ground truth con qué comparar. Decisión: el usuario humano revisa la ficha y corrige si es necesario.

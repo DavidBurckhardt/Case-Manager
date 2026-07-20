@@ -377,14 +377,14 @@
 
   <!-- ── Header ── -->
   <header class="doc-header">
-    <p class="eyebrow">Migraciones 24–25 &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.1</p>
+    <p class="eyebrow">Migraciones 24–26 &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.2</p>
     <h1>Ciclo de Vida del Expediente</h1>
     <p class="doc-subtitle">State machine judicial sobre el proceso CPCCN para el Generador de Expedientes. Implementa transiciones automáticas por pipeline e historial de auditoría con control de acceso por rol.</p>
     <div class="chips">
       <span class="chip">Backend · NestJS</span>
       <span class="chip">Frontend · Next.js 16</span>
       <span class="chip">Base de datos · Supabase (PostgreSQL)</span>
-      <span class="chip chip-accent">Migraciones 24–25</span>
+      <span class="chip chip-accent">Migraciones 24–26</span>
       <span class="chip chip-success">10/10 pruebas ✓</span>
     </div>
   </header>
@@ -528,6 +528,7 @@
         <ul>
           <li><code>initial_filing</code> → <code>INICIADO</code></li>
           <li>Llama <code>transitionFromActs()</code> post-extracción</li>
+          <li>Actualiza <code>last_activity_at</code> como último paso (mig. 26)</li>
           <li>No propaga errores del lifecycle</li>
         </ul>
       </div>
@@ -541,6 +542,15 @@
           <li>Réplica TS de <code>can_access_case()</code></li>
           <li>Compartido entre <code>LifecycleController</code> y <code>CaseDocumentsController</code></li>
           <li>Lanza 404 / 403 según corresponda</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-label">Modificado (mig. 26)</div>
+        <h3>LifecycleService.commit()</h3>
+        <ul>
+          <li>Actualiza <code>last_activity_at = now()</code> junto con <code>current_status_id</code> en el mismo <code>UPDATE</code></li>
+          <li>Cubre AUTO y MANUAL — cualquier transición es impulso procesal</li>
+          <li>Al ir en el mismo statement no puede quedar desincronizado con el estado</li>
         </ul>
       </div>
       <div class="card" style="grid-column:span 2;">

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Resend } from 'resend'
 import { SupabaseService } from '../supabase/supabase.service'
 import { HolidaysService } from './holidays.service'
-import { businessDaysUntil, toDateString } from './business-days'
+import { addBusinessDays, businessDaysUntil, toDateString } from './business-days'
 
 type AlertType = 'T10' | 'T5' | 'T2' | 'T0'
 
@@ -21,6 +21,18 @@ const THRESHOLDS: { type: AlertType; days: number; email: boolean }[] = [
   { type: 'T5',  days: 5,  email: true },
   { type: 'T10', days: 10, email: false },
 ]
+
+/** Art. 310 CPCCN — la instancia caduca a los 90 días hábiles sin impulso. */
+const CADUCIDAD_DIAS_HABILES = 90
+
+/**
+ * Días hábiles de inactividad que abren el plazo. 10 menos que el vencimiento
+ * real para que las alertas T10/T5/T2 alcancen a dispararse antes del T-0.
+ */
+const CADUCIDAD_TRIGGER_DAYS = CADUCIDAD_DIAS_HABILES - 10
+
+/** Marca en triggered_by_act los plazos abiertos por el timer, no por el LLM. */
+const PASSIVE_SOURCE = 'PASSIVE_CADUCIDAD_TIMER'
 
 interface PendingDeadline {
   id: string
@@ -82,6 +94,163 @@ export class AlertsService {
       this.logger.error(`runDailyCheck failed: ${(err as Error).message}`)
       return { checked, sent }
     }
+  }
+
+  // ── Caducidad pasiva ───────────────────────────────────────────────────────
+
+  /**
+   * Detecta expedientes activos sin impulso procesal y les abre el plazo de
+   * caducidad de instancia (art. 310 CPCCN, 90 días hábiles).
+   *
+   * Es el complemento del motor de plazos, no un duplicado: generateForCase()
+   * reacciona a documentos, y la caducidad se produce justamente cuando NO hay
+   * documentos. Sin este timer el riesgo más caro del estudio es el único que
+   * el sistema no ve.
+   *
+   * El umbral de disparo son 80 días hábiles y no 90 a propósito: el plazo se
+   * crea 10 días hábiles antes de vencer para que las alertas T10/T5/T2 del
+   * chequeo diario tengan margen de correr. La fecha de vencimiento sigue
+   * siendo la real (last_activity_at + 90), no la del disparo.
+   *
+   * Nunca propaga: es un paso oportunista del cron y no debe voltear la corrida
+   * de alertas que viene después.
+   */
+  async checkPassiveCaducidad(): Promise<{ scanned: number; created: number; cleared: number }> {
+    const today = toDateString(new Date())
+    let scanned = 0
+    let created = 0
+    let cleared = 0
+
+    try {
+      const cases = await this.loadActiveCases()
+      scanned = cases.length
+
+      for (const c of cases) {
+        try {
+          const lastActivity = toDateString(new Date(c.last_activity_at))
+          const diasSinActividad = await businessDaysUntil(lastActivity, today, this.holidays.forYear)
+
+          if (diasSinActividad >= CADUCIDAD_TRIGGER_DAYS) {
+            if (await this.createCaducidadDeadline(c.id, lastActivity, diasSinActividad)) created++
+          } else if (await this.clearCaducidadDeadline(c.id)) {
+            cleared++
+          }
+        } catch (err) {
+          this.logger.error(
+            `Caducidad pasiva falló para expediente ${c.id}: ${(err as Error).message}`,
+          )
+        }
+      }
+
+      this.logger.log(
+        `✓ Caducidad pasiva — ${scanned} expedientes activos, ${created} plazos abiertos, ${cleared} liberados`,
+      )
+    } catch (err) {
+      this.logger.error(`checkPassiveCaducidad failed: ${(err as Error).message}`)
+    }
+
+    return { scanned, created, cleared }
+  }
+
+  /** Expedientes vivos cuyo estado actual no es terminal. */
+  private async loadActiveCases(): Promise<{ id: string; last_activity_at: string }[]> {
+    const { data, error } = await this.db
+      .from('case_files')
+      .select('id, last_activity_at, current_status:workflow_states!inner(is_terminal)')
+      .is('deleted_at', null)
+
+    if (error) throw new Error(`Failed to load active cases: ${error.message}`)
+
+    // is_terminal se filtra en memoria por la misma razón que deleted_at en
+    // loadPendingDeadlines: filtrar sobre una tabla embebida es frágil.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data ?? [])
+      .filter((row: any) => row.current_status && row.current_status.is_terminal === false)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .map((row: any) => ({ id: row.id, last_activity_at: row.last_activity_at }))
+  }
+
+  /** Devuelve true si insertó el plazo; false si ya existía uno pendiente. */
+  private async createCaducidadDeadline(
+    caseId: string,
+    lastActivity: string,
+    diasSinActividad: number,
+  ): Promise<boolean> {
+    const { data: existing, error: qErr } = await this.db
+      .from('case_deadlines')
+      .select('id')
+      .eq('case_file_id', caseId)
+      .eq('act_type', 'CADUCIDAD_INSTANCIA')
+      .eq('estado', 'PENDIENTE')
+      .limit(1)
+
+    if (qErr) throw new Error(`Failed to check existing caducidad: ${qErr.message}`)
+    if (existing?.length) return false
+
+    const fechaVencimiento = await addBusinessDays(
+      lastActivity,
+      CADUCIDAD_DIAS_HABILES,
+      this.holidays.forYear,
+    )
+
+    const { error: insertErr } = await this.db.from('case_deadlines').insert({
+      case_file_id:      caseId,
+      act_type:          'CADUCIDAD_INSTANCIA',
+      description:       'Impulsar proceso (caducidad de instancia)',
+      dias_habiles:      CADUCIDAD_DIAS_HABILES,
+      fecha_inicio:      lastActivity,
+      fecha_vencimiento: fechaVencimiento,
+      estado:            'PENDIENTE',
+      tipo:              'FATAL',
+      is_auto_generated: true,
+      // triggered_by_act es NOT NULL y acá no hay acto del LLM que lo llene.
+      // El marcador `source` es además el discriminador que permite borrar solo
+      // los plazos que abrió este timer, sin tocar los que extrajo el LLM.
+      triggered_by_act: {
+        source: PASSIVE_SOURCE,
+        act_type: 'CADUCIDAD_INSTANCIA',
+        last_activity_at: lastActivity,
+        dias_sin_actividad: diasSinActividad,
+      },
+    })
+
+    // 23505 = la constraint de idempotencia (case_file_id, act_type,
+    // fecha_inicio). Dos corridas del cron el mismo día sobre un expediente ya
+    // marcado CUMPLIDO caen acá: no es un error, es el guard funcionando.
+    if (insertErr) {
+      if (insertErr.code === '23505') return false
+      throw new Error(`Failed to insert caducidad deadline: ${insertErr.message}`)
+    }
+
+    this.logger.warn(
+      `⚠ Caducidad pasiva — expediente ${caseId} lleva ${diasSinActividad} días hábiles sin impulso ` +
+      `(vence ${fechaVencimiento})`,
+    )
+    return true
+  }
+
+  /**
+   * El expediente volvió a moverse: el plazo que abrió el timer ya no describe
+   * la realidad y se borra. Solo se tocan los que llevan el marcador `source`
+   * — un CADUCIDAD_INSTANCIA extraído de un documento real refleja una
+   * intimación del juzgado y sobrevive al impulso.
+   */
+  private async clearCaducidadDeadline(caseId: string): Promise<boolean> {
+    const { data, error } = await this.db
+      .from('case_deadlines')
+      .delete()
+      .eq('case_file_id', caseId)
+      .eq('act_type', 'CADUCIDAD_INSTANCIA')
+      .eq('estado', 'PENDIENTE')
+      .eq('is_auto_generated', true)
+      .eq('triggered_by_act->>source', PASSIVE_SOURCE)
+      .select('id')
+
+    if (error) throw new Error(`Failed to clear caducidad deadline: ${error.message}`)
+    if (!data?.length) return false
+
+    this.logger.log(`Caducidad pasiva liberada — expediente ${caseId} fue impulsado`)
+    return true
   }
 
   private async loadPendingDeadlines(): Promise<PendingDeadline[]> {

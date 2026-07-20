@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { SupabaseService } from '../supabase/supabase.service'
 import { extractedCaseSchema } from '../llm/extraction.schema'
 import { CPCCN_RULES } from './cpccn-rules'
-import { addBusinessDays } from './business-days'
+import { addBusinessDays, toDateString } from './business-days'
 import { HolidaysService } from './holidays.service'
 
 type ProceduralAct = z.infer<typeof extractedCaseSchema>['procedural_acts'][number]
@@ -19,6 +19,57 @@ export class DeadlinesService {
 
   private get db(): any {
     return this.supabase.admin
+  }
+
+  /**
+   * Plazos PENDIENTE que vencen dentro de `dias` días corridos, acotados a los
+   * expedientes que el usuario puede ver.
+   *
+   * El backend habla con Supabase por service-role, así que RLS no aplica: el
+   * criterio de acceso de can_access_case() (migración 23) se reproduce acá a
+   * mano — creador, abogado responsable, o rol con alcance de estudio.
+   */
+  async countUpcoming(userId: string, dias: number): Promise<number> {
+    const until = new Date()
+    until.setDate(until.getDate() + dias)
+    const untilStr = toDateString(until)
+
+    const caseIds = await this.accessibleCaseIds(userId)
+    if (caseIds.length === 0) return 0
+
+    const { count, error } = await this.db
+      .from('case_deadlines')
+      .select('id', { count: 'exact', head: true })
+      .eq('estado', 'PENDIENTE')
+      .lte('fecha_vencimiento', untilStr)
+      .in('case_file_id', caseIds)
+
+    if (error) throw new Error(`Failed to count upcoming deadlines: ${error.message}`)
+    return count ?? 0
+  }
+
+  /**
+   * Ids de los expedientes vivos que `userId` puede ver. Se resuelven acá y no
+   * con un filtro embebido sobre case_files porque los filtros de PostgREST
+   * sobre tablas embebidas son frágiles (mismo motivo que en AlertsService).
+   */
+  private async accessibleCaseIds(userId: string): Promise<string[]> {
+    const { data: profile } = await this.db
+      .from('users')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const firmWide = profile?.role === 'admin' || profile?.role === 'socio'
+
+    let q = this.db.from('case_files').select('id').is('deleted_at', null)
+    if (!firmWide) {
+      q = q.or(`created_by.eq.${userId},responsible_attorney_id.eq.${userId}`)
+    }
+
+    const { data, error } = await q
+    if (error) throw new Error(`Failed to resolve accessible cases: ${error.message}`)
+    return (data ?? []).map((row: { id: string }) => row.id)
   }
 
   async generateForCase(caseId: string, proceduralActs: ProceduralAct[]): Promise<void> {

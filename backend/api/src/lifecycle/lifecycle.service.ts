@@ -366,9 +366,12 @@ export class LifecycleService {
 
     if (stateErr || !toState) throw new Error(`Estado desconocido: ${toStateCode}`)
 
+    // last_activity_at viaja en el mismo update que el estado: toda transición
+    // —AUTO o MANUAL— es impulso procesal y reinicia el contador de caducidad
+    // pasiva. Al ir junto al cambio de estado no puede quedar desincronizado.
     const { error: updateErr } = await this.db
       .from('case_files')
-      .update({ current_status_id: toState.id })
+      .update({ current_status_id: toState.id, last_activity_at: new Date().toISOString() })
       .eq('id', caseId)
 
     if (updateErr) throw new Error(`No se pudo actualizar el estado: ${updateErr.message}`)
