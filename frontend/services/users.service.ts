@@ -1,13 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
-
-export const ROLES = ['admin', 'socio', 'asociado'] as const
-export type Role = (typeof ROLES)[number]
-
-export const ROLE_LABELS: Record<Role, string> = {
-  admin:    'Admin',
-  socio:    'Socio',
-  asociado: 'Asociado',
-}
+import { ROLES } from '@/constants/roles'
+import type { Role } from '@/constants/roles'
+export { ROLES, ROLE_LABELS } from '@/constants/roles'
+export type { Role } from '@/constants/roles'
 
 export interface UserRow {
   id: string

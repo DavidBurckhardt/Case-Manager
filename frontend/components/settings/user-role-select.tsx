@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api-client'
-import { ROLE_LABELS, type Role } from '@/services/users.service'
+import { ROLE_LABELS, type Role } from '@/constants/roles'
 
 interface Props {
   userId: string
