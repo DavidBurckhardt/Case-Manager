@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import mammoth from 'mammoth'
 import { SupabaseService } from '../supabase/supabase.service'
 import { NatsService } from '../messaging/nats.service'
 import { ExtractionService, ExtractionFile } from '../llm/extraction.service'
@@ -9,6 +10,9 @@ import type { ExtractRequest } from '../messaging/contracts'
 
 /** MIME types the LLM accepts directly (PDF as a file, images as vision input). */
 const LLM_SUPPORTED = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/')
+
+/** DOCX (OOXML) — el LLM no lo lee directo; se convierte a texto con mammoth. */
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /**
  * Orchestrates the two-phase pipeline.
@@ -108,6 +112,24 @@ export class PipelineService implements OnApplicationBootstrap {
     // Download the raw bytes and keep only what the LLM can read directly.
     const files: ExtractionFile[] = []
     for (const doc of documents) {
+      // DOCX: el modelo no lo lee nativo. Se convierte a texto plano y viaja
+      // como bloque de texto en el prompt (ver toContentPart en la extracción).
+      if (doc.mime === DOCX_MIME) {
+        try {
+          const { buffer } = await this.supabase.downloadObject(doc.storageKey)
+          const { value: text } = await mammoth.extractRawText({ buffer })
+          if (!text.trim()) throw new Error('el documento no contiene texto extraíble')
+          files.push({ filename: doc.filename, mime: doc.mime, text })
+        } catch (err) {
+          this.logger.error(`DOCX→texto falló para ${doc.filename}: ${(err as Error).message}`)
+          await this.db
+            .from('case_file_documents')
+            .update({ processing_error: `No se pudo convertir el DOCX: ${(err as Error).message}`, processing_error_stage: 'LLM_EXTRACTION' })
+            .eq('id', doc.documentId)
+        }
+        continue
+      }
+
       if (!LLM_SUPPORTED(doc.mime)) {
         this.logger.warn(`Skipping unsupported type for LLM: ${doc.filename} (${doc.mime})`)
         await this.db

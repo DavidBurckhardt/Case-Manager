@@ -140,7 +140,7 @@
 <div class="page">
 
   <header class="doc-header">
-    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.2</p>
+    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.3</p>
     <h1>Pipeline de Ingesta y Motor de Plazos</h1>
     <p class="doc-subtitle">Cómo un archivo PDF pasa de la pantalla de carga a un expediente estructurado con plazos judiciales calculados automáticamente.</p>
     <div class="chips">
@@ -173,7 +173,7 @@
         <div class="phase-content">
           <div class="phase-title">Upload al storage</div>
           <div class="phase-desc">
-            <code>POST /documents/upload</code> — multipart/form-data, campo <code>files</code>, hasta 20 archivos por request. El endpoint acepta PDF, JPG, PNG, DOCX (hasta 25 MB cada uno por defecto, configurable con <code>MAX_DOCUMENT_SIZE_MB</code>).<br><br>
+            <code>POST /documents/upload</code> — multipart/form-data, campo <code>files</code>, hasta 20 archivos por request. El endpoint acepta PDF, JPG, PNG, WEBP y DOCX (hasta 25 MB cada uno por defecto, configurable con <code>MAX_DOCUMENT_SIZE_MB</code>). El allowlist se limita a formatos que el pipeline procesa de punta a punta — <code>.doc</code> legacy y XML de CEDs quedan fuera del MVP para no generar expedientes vacíos.<br><br>
             Cada archivo pasa por validación de tipo MIME y tamaño. Si pasa, el service calcula un SHA-256 del contenido para deduplicación: si el mismo usuario ya subió exactamente el mismo archivo antes, se reutiliza el objeto en storage sin re-subir — solo se crea un registro nuevo en <code>case_file_documents</code> apuntando al storage_key original.
           </div>
           <div class="phase-code">
@@ -231,7 +231,7 @@ interface ExtractRequest {
         <div class="phase-content">
           <div class="phase-title">Consumo del job — idempotency check</div>
           <div class="phase-desc">
-            El <code>PipelineService</code> consume el mensaje y verifica que el case sigue en <code>processing_phase = 'analyzing'</code>. Si ya está en <code>complete</code> o <code>preview</code> (procesado por una entrega anterior), el job es un no-op y se ackea para evitar loops. Los tipos MIME no soportados por el LLM (por ahora todo lo que no sea PDF o imagen) se marcan con <code>processing_error</code> en el documento y se omiten.
+            El <code>PipelineService</code> consume el mensaje y verifica que el case sigue en <code>processing_phase = 'analyzing'</code>. Si ya está en <code>complete</code> o <code>preview</code> (procesado por una entrega anterior), el job es un no-op y se ackea para evitar loops. Los DOCX se convierten a texto con <strong>mammoth</strong> en este paso (el LLM no lee <code>.docx</code> nativo); PDF e imágenes pasan como bytes crudos. Cualquier MIME que igual no se pueda procesar se marca con <code>processing_error</code> y se omite.
           </div>
         </div>
       </div>
@@ -244,7 +244,7 @@ interface ExtractRequest {
         <div class="phase-content">
           <div class="phase-title">Extracción LLM (Fase 2)</div>
           <div class="phase-desc">
-            Los documentos se descargan del storage como raw bytes y se envían directamente al LLM — <strong>sin OCR intermedio</strong>. El LLM recibe los PDFs e imágenes como adjuntos multimodales y devuelve un único JSON con toda la estructura del expediente.<br><br>
+            Los documentos se descargan del storage como raw bytes y se envían directamente al LLM — <strong>sin OCR intermedio</strong>. El LLM recibe los PDFs e imágenes como adjuntos multimodales, y el texto de los DOCX (ya convertido con mammoth) como bloque de texto en el mismo prompt. Devuelve un único JSON con toda la estructura del expediente.<br><br>
             El system prompt instruye al LLM con 10 reglas de normalización (fechas en YYYY-MM-DD, CUIT sin separadores, montos numéricos, prioridad judicial sobre administrativa) y una sección crítica sobre <strong>actos procesales</strong> — es lo que alimenta el motor de plazos.
           </div>
           <div class="phase-code">
@@ -608,7 +608,7 @@ case_file_parties          — demandados + abogados</code></pre>
         <span class="endpoint-path">/documents/upload</span>
       </div>
       <div class="endpoint-desc">
-        Multipart/form-data. Campo: <code>files</code> (1–20 archivos). Formatos: PDF, JPG, PNG, DOCX. Límite por archivo: <code>MAX_DOCUMENT_SIZE_MB</code> (default 25 MB).<br>
+        Multipart/form-data. Campo: <code>files</code> (1–20 archivos). Formatos: PDF, JPG, PNG, WEBP, DOCX (DOCX se convierte a texto con mammoth antes del LLM). Límite por archivo: <code>MAX_DOCUMENT_SIZE_MB</code> (default 25 MB).<br>
         Respuesta: <code>{ documents: DocumentRow[], errors: { file, error }[] }</code>.<br>
         Requiere <code>Authorization: Bearer &lt;jwt&gt;</code>.
       </div>
@@ -681,6 +681,9 @@ case_file_parties          — demandados + abogados</code></pre>
     </div>
     <div class="callout-green" style="margin-top:12px;">
       <strong>Caducidad pasiva implementada (v1.2):</strong> el timer de 90 días hábiles corre diariamente junto al cron de alertas. El riesgo de caducidad ya no depende de que exista un documento que el LLM pueda analizar — se detecta por ausencia de actividad. Ver sección "Caducidad pasiva" más arriba.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Ingesta de DOCX implementada (v1.2):</strong> el PRD lista DOCX como formato del MVP. Antes se aceptaba en el upload pero la extracción lo descartaba, dejando el expediente vacío. Ahora <code>PipelineService</code> convierte el DOCX a texto con <strong>mammoth</strong> antes de llamar al LLM. El allowlist se recortó a lo que el pipeline procesa realmente (PDF, imágenes, DOCX): <code>.doc</code> legacy y XML de CEDs quedan para v1.0 (parseo estructurado SNEJ).
     </div>
     <div class="callout" style="margin-top:12px;">
       <strong>T-10 in-app pendiente:</strong> T-10 se registra en <code>deadline_alerts</code> para trazabilidad pero todavía no dispara ninguna notificación en la UI. El banner de T-0 cubre el caso más urgente; T-10 queda para una iteración posterior.

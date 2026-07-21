@@ -1,16 +1,21 @@
-/** Allowed MIME types and their canonical extensions. */
+/**
+ * MIME types aceptados y su extensión canónica. Solo se listan formatos que el
+ * pipeline realmente puede procesar de punta a punta:
+ *   • PDF e imágenes → los lee el LLM de forma nativa.
+ *   • DOCX (OOXML)   → se convierte a texto con mammoth antes del LLM.
+ * El .doc binario legacy (mammoth no lo soporta) y el XML de CEDs del SNEJ
+ * (parseo estructurado propio, alcance v1.0) quedan deliberadamente afuera:
+ * aceptarlos generaba expedientes vacíos porque la extracción los descartaba.
+ */
 export const ALLOWED_MIME_TYPES: Record<string, string> = {
   'application/pdf': 'pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'application/msword': 'doc',
-  'application/xml': 'xml',
-  'text/xml': 'xml',
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
 }
 
-export const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.xml', '.jpg', '.jpeg', '.png', '.webp']
+export const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.jpg', '.jpeg', '.png', '.webp']
 
 export function maxBytes(): number {
   const mb = Number(process.env.MAX_DOCUMENT_SIZE_MB ?? 25)
