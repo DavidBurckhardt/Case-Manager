@@ -683,7 +683,7 @@ case_file_parties          — demandados + abogados</code></pre>
       <strong>Caducidad pasiva implementada (v1.2):</strong> el timer de 90 días hábiles corre diariamente junto al cron de alertas. El riesgo de caducidad ya no depende de que exista un documento que el LLM pueda analizar — se detecta por ausencia de actividad. Ver sección "Caducidad pasiva" más arriba.
     </div>
     <div class="callout-green" style="margin-top:12px;">
-      <strong>Ingesta de DOCX implementada (v1.2):</strong> el PRD lista DOCX como formato del MVP. Antes se aceptaba en el upload pero la extracción lo descartaba, dejando el expediente vacío. Ahora <code>PipelineService</code> convierte el DOCX a texto con <strong>mammoth</strong> antes de llamar al LLM. El allowlist se recortó a lo que el pipeline procesa realmente (PDF, imágenes, DOCX): <code>.doc</code> legacy y XML de CEDs quedan para v1.0 (parseo estructurado SNEJ).
+      <strong>Ingesta de DOCX implementada (v1.3):</strong> el PRD lista DOCX como formato del MVP. Antes se aceptaba en el upload pero la extracción lo descartaba, dejando el expediente vacío. Ahora <code>PipelineService</code> convierte el DOCX a texto con <strong>mammoth</strong> antes de llamar al LLM. El allowlist se recortó a lo que el pipeline procesa realmente (PDF, imágenes, DOCX): <code>.doc</code> legacy y XML de CEDs quedan para v1.0 (parseo estructurado SNEJ).
     </div>
     <div class="callout" style="margin-top:12px;">
       <strong>T-10 in-app pendiente:</strong> T-10 se registra en <code>deadline_alerts</code> para trazabilidad pero todavía no dispara ninguna notificación en la UI. El banner de T-0 cubre el caso más urgente; T-10 queda para una iteración posterior.
