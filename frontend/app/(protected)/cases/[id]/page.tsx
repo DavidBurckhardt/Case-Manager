@@ -2,11 +2,17 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import {
   ArrowLeft, FileText, User, Building2, Shield, AlertTriangle,
-  Stethoscope, Scale, Calendar, Files, AlertCircle, Loader2, Eye,
+  Stethoscope, Scale, Calendar, Files, AlertCircle, Loader2, Eye, Upload,
 } from 'lucide-react'
 import { getCaseFileById } from '@/services/case-file.service'
+import { listCaseFileDocuments } from '@/services/document.service'
+import { DocumentUploaderForCase } from '@/components/documents/document-uploader-for-case'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { CaseTabs } from '@/components/cases/case-tabs'
+import { countOverdueDeadlines } from '@/services/deadlines.service'
+import { getCurrentUserRole } from '@/services/users.service'
+import { LifecycleBadge } from '@/components/cases/lifecycle-badge'
 
 export const metadata = { title: 'Detalle de Expediente — Generador de Expedientes' }
 
@@ -20,6 +26,25 @@ function fmtDate(v: string | null | undefined) {
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v)
+}
+
+function fmtSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const DOC_STATUS_LABELS: Record<string, string> = {
+  UPLOADED:             'Subido',
+  METADATA_EXTRACTION:  'Extrayendo',
+  CASE_GENERATION:      'Generando',
+  COMPLETED:            'Procesado',
+  ERROR:                'Error',
+}
+
+const DOC_STATUS_STYLES: Record<string, string> = {
+  COMPLETED: 'bg-green-500/15 text-green-700',
+  ERROR:     'bg-destructive/15 text-destructive',
 }
 
 function Section({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
@@ -76,11 +101,18 @@ export default async function CaseDetailPage({ params }: Props) {
     notFound()
   }
 
+  const [overdueCount, role, documents] = await Promise.all([
+    countOverdueDeadlines(id),
+    getCurrentUserRole(),
+    listCaseFileDocuments(id),
+  ])
+  // Mover el expediente de estado es una decisión procesal: solo socios y admin.
+  const canTransition = role === 'admin' || role === 'socio'
+
   const {
     case_number, title, caption, court, jurisdiction, department,
     process_type, legal_matter, matter, filing_date, claim_amount,
-    summary, confidence_overall, confidence_missing_fields,
-    documents_detected, important_dates, processing_phase,
+    summary, documents_detected, important_dates, processing_phase,
     current_status, parties, plaintiff, accident, medical,
     insurance, employer, admin_proceedings, created_at,
   } = caseFile
@@ -91,27 +123,9 @@ export default async function CaseDetailPage({ params }: Props) {
   const displayTitle  = title || caption || case_number
   const safeDates     = Array.isArray(important_dates) ? important_dates as Array<{ date: string | null; event: string }> : []
   const safeDocs      = Array.isArray(documents_detected) ? documents_detected as string[] : []
-  const safeMissing   = Array.isArray(confidence_missing_fields) ? confidence_missing_fields as string[] : []
 
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-16">
-
-      {/* ── Back + header ── */}
-      <div className="space-y-3">
-        <Link href="/cases" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver a Expedientes
-        </Link>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold leading-snug">{displayTitle}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Expediente&nbsp;<span className="font-mono font-semibold">{case_number}</span>
-              {court && <> · {court}</>}
-              {jurisdiction && <> · {jurisdiction}</>}
-            </p>
-          </div>
-        </div>
-      </div>
+  const expedienteContent = (
+    <div className="space-y-6">
 
       {/* ── Processing phase banner ── */}
       {processing_phase !== 'complete' && (
@@ -325,18 +339,96 @@ export default async function CaseDetailPage({ params }: Props) {
         </Section>
       )}
 
-      {/* ── Missing fields ── */}
-      {safeMissing.length > 0 && (
-        <Section icon={AlertCircle} title="Campos Faltantes">
-          <div className="flex flex-wrap gap-1.5">
-            {safeMissing.map((f, i) => (
-              <span key={i} className="inline-block rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                {f}
-              </span>
+    </div>
+  )
+
+  const documentosContent = (
+    <div className="space-y-6">
+      <Section icon={Upload} title="Agregar Documentos">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Los documentos nuevos se adjuntan a este expediente y disparan un nuevo análisis
+          por IA sobre el expediente completo.
+        </p>
+        <DocumentUploaderForCase caseId={id} />
+      </Section>
+
+      <Section icon={Files} title={`Documentos del Expediente (${documents.length})`}>
+        {documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Este expediente todavía no tiene documentos.</p>
+        ) : (
+          <ul className="divide-y">
+            {documents.map((doc) => (
+              <li key={doc.id} className="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{doc.original_filename}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {fmtSize(doc.file_size)} · {fmtDate(doc.uploaded_at)}
+                  </p>
+                  {doc.processing_error && (
+                    <p className="mt-0.5 text-xs text-destructive">{doc.processing_error}</p>
+                  )}
+                </div>
+                <Badge
+                  variant="outline"
+                  className={cn('shrink-0 border-0 text-xs', DOC_STATUS_STYLES[doc.processing_status] ?? 'bg-muted')}
+                >
+                  {DOC_STATUS_LABELS[doc.processing_status] ?? doc.processing_status}
+                </Badge>
+              </li>
             ))}
+          </ul>
+        )}
+      </Section>
+    </div>
+  )
+
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 pb-16">
+      <div className="space-y-3">
+        <Link href="/cases" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-3.5 w-3.5" /> Volver a Expedientes
+        </Link>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold leading-snug">{displayTitle}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Expediente&nbsp;<span className="font-mono font-semibold">{case_number}</span>
+              {court && <> · {court}</>}
+              {jurisdiction && <> · {jurisdiction}</>}
+            </p>
           </div>
-        </Section>
+          <LifecycleBadge code={current_status.code} label={current_status.label} />
+        </div>
+      </div>
+      {/* ── Banner T-0 ──
+          Rojo sólido y fuera de las tabs a propósito: un plazo vencido no puede
+          depender de que alguien haga click en la pestaña correcta para
+          enterarse. No bloquea nada — el usuario sigue navegando la ficha. */}
+      {overdueCount > 0 && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl bg-red-600 px-5 py-4 text-white shadow-sm"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-bold">
+              Este expediente tiene {overdueCount} plazo{overdueCount !== 1 ? 's' : ''} VENCIDO
+              {overdueCount !== 1 ? 'S' : ''} sin cumplir.
+            </p>
+            <p className="mt-0.5 text-xs text-red-50">
+              Revisá la pestaña Plazos inmediatamente.
+            </p>
+          </div>
+        </div>
       )}
+
+      <CaseTabs
+        caseId={id}
+        expedienteContent={expedienteContent}
+        documentosContent={documentosContent}
+        currentStatus={{ code: current_status.code, label: current_status.label }}
+        canTransition={canTransition}
+      />
     </div>
   )
 }

@@ -1,3 +1,4 @@
 export { DocumentUploader, type DocumentUploaderProps } from './document-uploader'
+export { DocumentUploaderForCase } from './document-uploader-for-case'
 export { UploadDropZone } from './upload-drop-zone'
 export { UploadFileItem } from './upload-file-item'

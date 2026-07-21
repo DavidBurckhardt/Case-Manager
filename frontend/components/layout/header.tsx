@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, LogOut, Search } from 'lucide-react'
+import Link from 'next/link'
+import { Bell, LogOut, Search, ShieldAlert } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme/theme-toggle'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,14 @@ import { useState, useTransition } from 'react'
 interface HeaderProps {
   title?: string
   userEmail?: string
+  userRole?: string
+  mfaEnabled?: boolean
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin:    'ADMIN',
+  socio:    'SOCIO',
+  asociado: 'ASOCIADO',
 }
 
 function getInitials(email?: string) {
@@ -25,7 +34,7 @@ function getInitials(email?: string) {
   return email.slice(0, 2).toUpperCase()
 }
 
-export function Header({ title, userEmail }: HeaderProps) {
+export function Header({ title, userEmail, userRole, mfaEnabled }: HeaderProps) {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
@@ -38,6 +47,24 @@ export function Header({ title, userEmail }: HeaderProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
+        {mfaEnabled === false && (
+          <Link
+            href="/settings/security"
+            className="hidden items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 hover:bg-amber-100 md:inline-flex dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200"
+          >
+            <ShieldAlert className="h-3 w-3" aria-hidden />
+            Activá la verificación en dos pasos
+          </Link>
+        )}
+
+        {userRole && ROLE_LABELS[userRole] && (
+          <span
+            className="hidden rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground sm:inline"
+            title={`Tu rol en el estudio: ${ROLE_LABELS[userRole]}`}
+          >
+            {ROLE_LABELS[userRole]}
+          </span>
+        )}
         {/* Search — entry point only; implementation in a future ticket */}
         <Button
           variant="outline"

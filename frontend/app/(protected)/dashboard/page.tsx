@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DocumentUploaderWithRedirect } from '@/components/documents/document-uploader-with-redirect'
 import { RecentActivity } from '@/components/home/recent-activity'
+import { PendingDeadlinesCount } from '@/components/home/pending-deadlines-count'
 
 export const metadata = { title: 'Inicio — Generador de Expedientes' }
 
@@ -21,10 +22,19 @@ async function getSummaryStats() {
   return { cases: cases ?? 0, docs: docs ?? 0 }
 }
 
-const STAT_CARDS = [
-  { label: 'Expedientes Activos',    href: '/cases',         icon: FolderOpen, key: 'cases' as const },
-  { label: 'Vencimientos Pendientes', href: '/deadlines',     icon: Clock,      key: null },
-  { label: 'Documentos',             href: '/documents',     icon: FileText,   key: 'docs' as const },
+type StatCard = {
+  label: string
+  href: string
+  icon: React.ElementType
+  key: 'cases' | 'docs' | null
+  /** Se resuelve en el cliente contra el gateway, no en este server component. */
+  live?: 'deadlines'
+}
+
+const STAT_CARDS: StatCard[] = [
+  { label: 'Expedientes Activos',    href: '/cases',         icon: FolderOpen, key: 'cases' },
+  { label: 'Vencimientos Pendientes', href: '/deadlines',     icon: Clock,      key: null, live: 'deadlines' },
+  { label: 'Documentos',             href: '/documents',     icon: FileText,   key: 'docs' },
   { label: 'Notificaciones',         href: '/notifications', icon: Bell,       key: null },
 ]
 
@@ -42,7 +52,7 @@ export default async function DashboardPage() {
 
       {/* Summary stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {STAT_CARDS.map(({ label, href, icon: Icon, key }) => (
+        {STAT_CARDS.map(({ label, href, icon: Icon, key, live }) => (
           <Link
             key={href}
             href={href}
@@ -52,7 +62,11 @@ export default async function DashboardPage() {
               <span className="text-sm font-medium text-muted-foreground">{label}</span>
               <Icon className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-primary" />
             </div>
-            <span className="text-2xl font-bold">{key ? stats[key] : '—'}</span>
+            <span className="text-2xl font-bold">
+              {live === 'deadlines'
+                ? <PendingDeadlinesCount dias={10} />
+                : key ? stats[key] : '—'}
+            </span>
           </Link>
         ))}
       </div>

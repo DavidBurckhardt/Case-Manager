@@ -1,12 +1,18 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import mammoth from 'mammoth'
 import { SupabaseService } from '../supabase/supabase.service'
 import { NatsService } from '../messaging/nats.service'
 import { ExtractionService, ExtractionFile } from '../llm/extraction.service'
+import { DeadlinesService } from '../deadlines/deadlines.service'
+import { LifecycleService } from '../lifecycle/lifecycle.service'
 import type { ExtractedCase } from '../llm/extraction.schema'
 import type { ExtractRequest } from '../messaging/contracts'
 
 /** MIME types the LLM accepts directly (PDF as a file, images as vision input). */
 const LLM_SUPPORTED = (mime: string) => mime === 'application/pdf' || mime.startsWith('image/')
+
+/** DOCX (OOXML) — el LLM no lo lee directo; se convierte a texto con mammoth. */
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 /**
  * Orchestrates the two-phase pipeline.
@@ -24,6 +30,8 @@ export class PipelineService implements OnApplicationBootstrap {
     private readonly supabase: SupabaseService,
     private readonly nats: NatsService,
     private readonly extraction: ExtractionService,
+    private readonly deadlines: DeadlinesService,
+    private readonly lifecycle: LifecycleService,
   ) {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,7 +49,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const { data, error } = await this.db
       .from('workflow_states')
       .select('id')
-      .eq('code', 'initial_filing')
+      .eq('code', 'INICIADO')
       .single()
     if (error || !data) throw new Error('Could not resolve initial workflow state')
     return data.id
@@ -58,7 +66,6 @@ export class PipelineService implements OnApplicationBootstrap {
         title: null,
         filing_date: null,
         claim_amount: null,
-        confidence_missing_fields: [],
         documents_detected: [],
         important_dates: [],
         legal_claim: {},
@@ -105,6 +112,24 @@ export class PipelineService implements OnApplicationBootstrap {
     // Download the raw bytes and keep only what the LLM can read directly.
     const files: ExtractionFile[] = []
     for (const doc of documents) {
+      // DOCX: el modelo no lo lee nativo. Se convierte a texto plano y viaja
+      // como bloque de texto en el prompt (ver toContentPart en la extracción).
+      if (doc.mime === DOCX_MIME) {
+        try {
+          const { buffer } = await this.supabase.downloadObject(doc.storageKey)
+          const { value: text } = await mammoth.extractRawText({ buffer })
+          if (!text.trim()) throw new Error('el documento no contiene texto extraíble')
+          files.push({ filename: doc.filename, mime: doc.mime, text })
+        } catch (err) {
+          this.logger.error(`DOCX→texto falló para ${doc.filename}: ${(err as Error).message}`)
+          await this.db
+            .from('case_file_documents')
+            .update({ processing_error: `No se pudo convertir el DOCX: ${(err as Error).message}`, processing_error_stage: 'LLM_EXTRACTION' })
+            .eq('id', doc.documentId)
+        }
+        continue
+      }
+
       if (!LLM_SUPPORTED(doc.mime)) {
         this.logger.warn(`Skipping unsupported type for LLM: ${doc.filename} (${doc.mime})`)
         await this.db
@@ -141,6 +166,29 @@ export class PipelineService implements OnApplicationBootstrap {
       await this.db.from('case_files').update({ processing_phase: 'preview' }).eq('id', caseId)
       return
     }
+    try {
+      await this.deadlines.generateForCase(caseId, metadata.procedural_acts ?? [])
+    } catch (err) {
+      this.logger.error(`Deadline generation failed for case ${caseId}: ${(err as Error).message}`)
+      // no re-throw — deadline failure must not mark case as preview
+    }
+    // Same contract as the deadline engine: transitionFromActs swallows its own
+    // errors, so a lifecycle problem never marks the case as preview either.
+    await this.lifecycle.transitionFromActs(caseId, metadata.procedural_acts ?? [])
+
+    // Documento nuevo analizado = impulso procesal. Reinicia el contador de
+    // caducidad pasiva (ver checkPassiveCaducidad en AlertsService). Falla
+    // silenciosa por el mismo motivo que los dos pasos anteriores: perder el
+    // touch solo adelanta una alerta, romper el pipeline pierde el expediente.
+    const { error: activityErr } = await this.db
+      .from('case_files')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', caseId)
+
+    if (activityErr) {
+      this.logger.error(`[${caseId}] No se pudo actualizar last_activity_at: ${activityErr.message}`)
+    }
+
     this.logger.log(`✓ Case ${caseId} enriched — processing_phase=complete`)
   }
 
@@ -148,7 +196,7 @@ export class PipelineService implements OnApplicationBootstrap {
     const {
       case: c, plaintiff, defendants, employer, insurance_company, accident, medical,
       administrative_proceedings, legal_claim, lawyers, important_dates,
-      documents_detected, summary, confidence,
+      procedural_acts, documents_detected, summary,
     } = metadata
 
     await this.assignCaseNumber(caseFileId, c.case_number, {
@@ -164,10 +212,9 @@ export class PipelineService implements OnApplicationBootstrap {
       filing_date: c.filing_date ?? null,
       claim_amount: c.claim_amount ?? null,
       summary: summary ?? null,
-      confidence_overall: confidence?.overall ?? null,
-      confidence_missing_fields: confidence?.missing_fields ?? [],
       documents_detected: documents_detected ?? [],
       important_dates: important_dates ?? [],
+      procedural_acts: procedural_acts ?? [],
       legal_claim: legal_claim ?? {},
       processing_phase: 'complete',
     })

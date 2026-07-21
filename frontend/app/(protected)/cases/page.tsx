@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FolderOpen, Search } from 'lucide-react'
 import { listCaseFiles } from '@/services/case-file.service'
+import { getCurrentUserRole, listUsers } from '@/services/users.service'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ErrorState } from '@/components/shared/error-state'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +33,21 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
     total = result.total
   } catch (err) {
     loadError = err instanceof Error ? err.message : 'Error al cargar los expedientes.'
+  }
+
+  // Socios y admins ven la cartera completa, así que necesitan saber de quién es
+  // cada expediente. Un asociado solo ve los propios: la columna sería ruido.
+  const role = await getCurrentUserRole()
+  const showResponsible = role === 'admin' || role === 'socio'
+  const attorneyNames = new Map<string, string>()
+  if (showResponsible) {
+    try {
+      for (const u of await listUsers()) {
+        attorneyNames.set(u.id, u.full_name ?? u.email)
+      }
+    } catch {
+      // La columna es informativa — si falla, se muestra "—" en lugar de romper.
+    }
   }
 
   return (
@@ -85,6 +101,7 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
                 <th className="px-4 py-3 font-medium">Expediente</th>
                 <th className="px-4 py-3 font-medium">Juzgado / Jurisdicción</th>
                 <th className="px-4 py-3 font-medium">Materia</th>
+                {showResponsible && <th className="px-4 py-3 font-medium">Responsable</th>}
                 <th className="px-4 py-3 font-medium">Estado</th>
                 <th className="px-4 py-3 font-medium">Actualizado</th>
                 <th className="px-4 py-3 font-medium">
@@ -108,6 +125,11 @@ export default async function CasesPage({ searchParams }: CasesPageProps) {
                     {c.jurisdiction ? ` · ${c.jurisdiction}` : ''}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{c.matter ?? '—'}</td>
+                  {showResponsible && (
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {(c.responsible_attorney_id && attorneyNames.get(c.responsible_attorney_id)) ?? '—'}
+                    </td>
+                  )}
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1.5">
                       <Badge

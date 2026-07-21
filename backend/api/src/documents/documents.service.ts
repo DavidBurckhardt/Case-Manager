@@ -48,13 +48,17 @@ export class DocumentsService {
   }
 
   /**
-   * Upload a batch of files, create ONE placeholder case for the batch, and
-   * publish a single extraction job for it. The documents go straight to the
-   * LLM (no OCR); the pipeline consumer downloads them and extracts in one call.
+   * Validate, store and register a batch of files. `caseFileId` is null for the
+   * inbox flow (the case doesn't exist yet) and set when attaching to an
+   * existing expediente. Files that fail validation, storage or insert land in
+   * `errors` and don't abort the rest of the batch.
    */
-  async uploadBatch(files: UploadedFile[], userId: string) {
-    if (!files.length) return { documents: [], errors: [{ file: 'unknown', error: 'No files provided.' }] }
-
+  private async storeFiles(
+    files: UploadedFile[],
+    userId: string,
+    caseFileId: string | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): Promise<{ uploaded: any[]; errors: UploadError[] }> {
     const errors: UploadError[] = []
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const uploaded: any[] = []
@@ -111,7 +115,7 @@ export class DocumentsService {
         .from('case_file_documents')
         .insert({
           id: documentId,
-          case_file_id: null,
+          case_file_id: caseFileId,
           original_filename: file.originalname,
           file_extension: ext,
           file_size: file.size,
@@ -139,6 +143,19 @@ export class DocumentsService {
 
       uploaded.push(data)
     }
+
+    return { uploaded, errors }
+  }
+
+  /**
+   * Upload a batch of files, create ONE placeholder case for the batch, and
+   * publish a single extraction job for it. The documents go straight to the
+   * LLM (no OCR); the pipeline consumer downloads them and extracts in one call.
+   */
+  async uploadBatch(files: UploadedFile[], userId: string) {
+    if (!files.length) return { documents: [], errors: [{ file: 'unknown', error: 'No files provided.' }] }
+
+    const { uploaded, errors } = await this.storeFiles(files, userId, null)
 
     if (!uploaded.length) {
       return { documents: [], errors }
@@ -175,11 +192,99 @@ export class DocumentsService {
     this.logger.log(`Phase 1 ✓ — case=${caseId} docs=${uploaded.length}`)
 
     // ── Publish a single extraction job for the whole case ─────────────────────
+    await this.enqueueExtraction(caseId, uploaded)
+
+    return { documents: uploaded, errors }
+  }
+
+  /**
+   * Attach new documents to an EXISTING case and re-run the extraction.
+   *
+   * Deliberately re-extracts over ALL of the case's documents, not just the new
+   * ones: enrichCase replaces the satellite rows (demandante, accidente,
+   * médico…) with whatever the LLM returned, so feeding it only the incoming
+   * PDF would wipe every field that document happens not to mention. Sending
+   * the whole expediente keeps "replace" the correct semantics and lets the LLM
+   * read the new pieza in the context of the rest.
+   *
+   * Access is checked by the controller before this runs.
+   */
+  async uploadToCase(files: UploadedFile[], userId: string, caseFileId: string) {
+    if (!files.length) return { documents: [], errors: [{ file: 'unknown', error: 'No files provided.' }] }
+
+    const { uploaded, errors } = await this.storeFiles(files, userId, caseFileId)
+
+    if (!uploaded.length) {
+      return { documents: [], errors }
+    }
+
+    const ids = uploaded.map((d) => d.id)
+    await this.db
+      .from('case_file_documents')
+      .update({ processing_status: 'COMPLETED', processing_stage_updated_at: new Date().toISOString() })
+      .in('id', ids)
+    uploaded.forEach((d) => { d.processing_status = 'COMPLETED' })
+
+    // Every non-deleted document of the case — the new ones included.
+    const { data: allDocs, error: docsErr } = await this.db
+      .from('case_file_documents')
+      .select('id, original_filename, mime_type, storage_key')
+      .eq('case_file_id', caseFileId)
+      .is('deleted_at', null)
+      .not('storage_key', 'is', null)
+
+    if (docsErr) {
+      this.logger.error(`Could not list documents for case ${caseFileId}: ${docsErr.message}`)
+      return { documents: uploaded, errors }
+    }
+
+    // handleExtractRequest skips any case not in 'analyzing', so the phase has
+    // to flip back BEFORE the message goes out or the job is a silent no-op.
+    const { error: phaseErr } = await this.db
+      .from('case_files')
+      .update({
+        processing_phase: 'analyzing',
+        phase2_docs_total: allDocs.length,
+        phase2_docs_completed: allDocs.length,
+      })
+      .eq('id', caseFileId)
+
+    if (phaseErr) {
+      this.logger.error(`Could not set case ${caseFileId} to 'analyzing': ${phaseErr.message}`)
+      return { documents: uploaded, errors }
+    }
+
+    this.logger.log(`Attached ${uploaded.length} doc(s) to case=${caseFileId} — re-extracting ${allDocs.length}`)
+
+    await this.enqueueExtraction(
+      caseFileId,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      allDocs.map((d: any) => ({
+        id: d.id,
+        original_filename: d.original_filename,
+        mime_type: d.mime_type,
+        storage_key: d.storage_key,
+      })),
+    )
+
+    return { documents: uploaded, errors }
+  }
+
+  /**
+   * Publish the extraction job. Never throws: the documents are already stored
+   * and the case row is written, so a messaging failure must not turn a
+   * successful upload into a 500 — it's logged and the case stays 'analyzing'.
+   */
+  private async enqueueExtraction(
+    caseId: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    docs: any[],
+  ): Promise<void> {
     try {
       await this.nats.publishExtractRequest({
         jobId: randomUUID(),
         caseId,
-        documents: uploaded.map((doc) => ({
+        documents: docs.map((doc) => ({
           documentId: doc.id,
           filename: doc.original_filename,
           mime: doc.mime_type,
@@ -189,7 +294,5 @@ export class DocumentsService {
     } catch (err) {
       this.logger.error(`Failed to enqueue extraction for case ${caseId}: ${(err as Error).message}`)
     }
-
-    return { documents: uploaded, errors }
   }
 }

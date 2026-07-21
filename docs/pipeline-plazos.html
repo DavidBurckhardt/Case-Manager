@@ -1,0 +1,699 @@
+<title>Pipeline de Ingesta y Motor de Plazos — Documentación Técnica</title>
+<style>
+  :root {
+    --bg:           #0E1825;
+    --surface:      #152130;
+    --surface-2:    #1C2E42;
+    --border:       #253B55;
+    --border-soft:  #1D2F45;
+    --text:         #C2D4E8;
+    --text-muted:   #5C7A99;
+    --text-dim:     #3A5570;
+    --accent:       #B8962E;
+    --accent-soft:  #2A2010;
+    --blue:         #4B82C4;
+    --blue-soft:    #162038;
+    --green:        #3A9E6E;
+    --green-soft:   #0E2518;
+    --red:          #B84040;
+    --red-soft:     #2A1010;
+    --purple:       #7B5CB8;
+    --purple-soft:  #1E1530;
+    --code-bg:      #091218;
+    --code-text:    #7BBFE0;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #F2F5FA; --surface: #FFFFFF; --surface-2: #EBF0F8;
+      --border: #D0DCEA; --border-soft: #E2EAF4; --text: #162035;
+      --text-muted: #5A7090; --text-dim: #90A8C0; --accent: #9A7A1C;
+      --accent-soft: #FDF6E3; --blue: #3068B0; --blue-soft: #EAF0FA;
+      --green: #2A8A58; --green-soft: #E8F5EE; --red: #A03030;
+      --red-soft: #FAEAEA; --purple: #6040A0; --purple-soft: #F0EAF8;
+      --code-bg: #F0F4F8; --code-text: #2A6090;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0E1825;--surface:#152130;--surface-2:#1C2E42;--border:#253B55;--border-soft:#1D2F45;
+    --text:#C2D4E8;--text-muted:#5C7A99;--text-dim:#3A5570;--accent:#B8962E;--accent-soft:#2A2010;
+    --blue:#4B82C4;--blue-soft:#162038;--green:#3A9E6E;--green-soft:#0E2518;--red:#B84040;
+    --red-soft:#2A1010;--purple:#7B5CB8;--purple-soft:#1E1530;--code-bg:#091218;--code-text:#7BBFE0;
+  }
+  :root[data-theme="light"] {
+    --bg:#F2F5FA;--surface:#FFFFFF;--surface-2:#EBF0F8;--border:#D0DCEA;--border-soft:#E2EAF4;
+    --text:#162035;--text-muted:#5A7090;--text-dim:#90A8C0;--accent:#9A7A1C;--accent-soft:#FDF6E3;
+    --blue:#3068B0;--blue-soft:#EAF0FA;--green:#2A8A58;--green-soft:#E8F5EE;--red:#A03030;
+    --red-soft:#FAEAEA;--purple:#6040A0;--purple-soft:#F0EAF8;--code-bg:#F0F4F8;--code-text:#2A6090;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.65; padding: 48px 24px 96px; }
+  .page { max-width: 860px; margin: 0 auto; }
+
+  .doc-header { border-bottom: 1px solid var(--border); padding-bottom: 32px; margin-bottom: 48px; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  h1 { font-family: Georgia, 'Times New Roman', serif; font-size: 36px; font-weight: normal; line-height: 1.2; color: var(--text); text-wrap: balance; margin-bottom: 10px; }
+  .doc-subtitle { color: var(--text-muted); font-size: 15px; margin-bottom: 20px; max-width: 580px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 11.5px; font-weight: 500; letter-spacing: .03em; padding: 3px 10px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-muted); }
+  .chip-success { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+  .chip-accent  { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  section { margin-bottom: 52px; }
+  h2 { font-family: Georgia, 'Times New Roman', serif; font-size: 20px; font-weight: normal; color: var(--text); margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+  h3 { font-size: 13px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; margin-top: 24px; }
+  h3:first-child { margin-top: 0; }
+  p { color: var(--text); margin-bottom: 12px; max-width: 680px; }
+  p:last-child { margin-bottom: 0; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px 24px; }
+  .card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  @media (max-width: 640px) { .card-grid, .card-grid-2 { grid-template-columns: 1fr; } }
+  .card-label { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px; }
+  .card h3 { margin-top: 0; margin-bottom: 10px; }
+  .card ul { padding-left: 18px; color: var(--text-muted); font-size: 13.5px; }
+  .card ul li { margin-bottom: 5px; }
+  .card ul li strong { color: var(--text); }
+
+  code { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace; font-size: 12.5px; background: var(--code-bg); color: var(--code-text); padding: 1.5px 6px; border-radius: 3px; border: 1px solid var(--border-soft); }
+  pre { background: var(--code-bg); border: 1px solid var(--border-soft); border-radius: 8px; padding: 18px 20px; overflow-x: auto; margin-bottom: 16px; }
+  pre code { background: none; border: none; padding: 0; font-size: 13px; color: var(--code-text); line-height: 1.6; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th { text-align: left; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border-soft); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 11px 14px; vertical-align: top; color: var(--text-muted); }
+  tbody td:first-child { color: var(--text); }
+  tbody td code { font-size: 12px; }
+
+  .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+  .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border-soft); }
+  .method { font-family: 'SF Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 3px 8px; border-radius: 4px; min-width: 48px; text-align: center; }
+  .method-get    { background: var(--blue-soft);   color: var(--blue);   border: 1px solid var(--blue); }
+  .method-post   { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--green); }
+  .endpoint-path { font-family: 'SF Mono', monospace; font-size: 13px; color: var(--text); }
+  .endpoint-desc { padding: 10px 18px 12px; font-size: 13px; color: var(--text-muted); }
+
+  .callout { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 13.5px; color: var(--text); margin-bottom: 16px; }
+  .callout strong { color: var(--accent); }
+  .callout-blue { background: var(--blue-soft); border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 13.5px; color: var(--text); margin-bottom: 16px; }
+  .callout-blue strong { color: var(--blue); }
+  .callout-red { background: var(--red-soft); border-left: 3px solid var(--red); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 13.5px; color: var(--text); margin-bottom: 16px; }
+  .callout-red strong { color: var(--red); }
+  .callout-green { background: var(--green-soft); border-left: 3px solid var(--green); border-radius: 0 6px 6px 0; padding: 14px 18px; font-size: 13.5px; color: var(--text); margin-bottom: 16px; }
+  .callout-green strong { color: var(--green); }
+
+  hr { border: none; border-top: 1px solid var(--border-soft); margin: 40px 0; }
+
+  /* Phase flow */
+  .phase-flow { display: flex; gap: 0; flex-direction: column; }
+  .phase-step { display: flex; gap: 16px; padding: 0 0 28px 0; position: relative; }
+  .phase-step:last-child { padding-bottom: 0; }
+  .phase-left { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; }
+  .phase-num { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+  .phase-num.active { background: var(--blue-soft); border-color: var(--blue); color: var(--blue); }
+  .phase-line { flex: 1; width: 1px; background: var(--border-soft); margin: 4px 0 0 0; }
+  .phase-step:last-child .phase-line { display: none; }
+  .phase-content { flex: 1; padding-top: 4px; }
+  .phase-title { font-weight: 600; font-size: 14px; color: var(--text); margin-bottom: 4px; }
+  .phase-desc { font-size: 13.5px; color: var(--text-muted); }
+  .phase-code { margin-top: 10px; }
+
+  /* Status badges */
+  .status { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: .05em; padding: 2px 8px; border-radius: 3px; }
+  .status-analyzing { background: var(--purple-soft); color: var(--purple); border: 1px solid var(--purple); }
+  .status-complete   { background: var(--green-soft);  color: var(--green);  border: 1px solid var(--green); }
+  .status-preview    { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent); }
+  .status-error      { background: var(--red-soft);    color: var(--red);    border: 1px solid var(--red); }
+  .status-pending    { background: var(--blue-soft);   color: var(--blue);   border: 1px solid var(--blue); }
+
+  /* Alert level */
+  .alert-t10 { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:3px; background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
+  .alert-t5  { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:3px; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); }
+  .alert-t2  { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:3px; background:var(--red-soft); color:var(--red); border:1px solid var(--red); }
+  .alert-t0  { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:3px; background:var(--red-soft); color:var(--red); border:1px solid var(--red); }
+</style>
+
+<div class="page">
+
+  <header class="doc-header">
+    <p class="eyebrow">Core feature &nbsp;·&nbsp; 20 julio 2026 &nbsp;·&nbsp; v1.3</p>
+    <h1>Pipeline de Ingesta y Motor de Plazos</h1>
+    <p class="doc-subtitle">Cómo un archivo PDF pasa de la pantalla de carga a un expediente estructurado con plazos judiciales calculados automáticamente.</p>
+    <div class="chips">
+      <span class="chip">Backend · NestJS</span>
+      <span class="chip">Mensajería · NATS JetStream</span>
+      <span class="chip">LLM · Claude API</span>
+      <span class="chip">Storage · Supabase</span>
+      <span class="chip chip-accent">2 fases</span>
+      <span class="chip chip-success">En producción</span>
+    </div>
+  </header>
+
+  <!-- ── Resumen ── -->
+  <section>
+    <h2>Resumen</h2>
+    <p>El usuario arrastra uno o más documentos (PDF, imagen, DOCX) al área de carga. En segundos aparece un expediente marcado como "procesando". En el background, un worker descarga los documentos, los envía directamente al LLM, y estructura toda la metadata del expediente: carátula, juzgado, actor, demandado, datos del accidente, diagnósticos, y — lo más crítico — los actos procesales que disparan plazos judiciales.</p>
+    <p>El pipeline tiene dos fases deliberadamente separadas: la Fase 1 responde en milisegundos para no bloquear al usuario, y la Fase 2 corre de manera asincrónica a través de una cola NATS JetStream con redelivery automático.</p>
+  </section>
+
+  <!-- ── Flujo completo ── -->
+  <section>
+    <h2>Flujo completo de procesamiento</h2>
+
+    <div class="phase-flow">
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">1a</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Upload al storage</div>
+          <div class="phase-desc">
+            <code>POST /documents/upload</code> — multipart/form-data, campo <code>files</code>, hasta 20 archivos por request. El endpoint acepta PDF, JPG, PNG, WEBP y DOCX (hasta 25 MB cada uno por defecto, configurable con <code>MAX_DOCUMENT_SIZE_MB</code>). El allowlist se limita a formatos que el pipeline procesa de punta a punta — <code>.doc</code> legacy y XML de CEDs quedan fuera del MVP para no generar expedientes vacíos.<br><br>
+            Cada archivo pasa por validación de tipo MIME y tamaño. Si pasa, el service calcula un SHA-256 del contenido para deduplicación: si el mismo usuario ya subió exactamente el mismo archivo antes, se reutiliza el objeto en storage sin re-subir — solo se crea un registro nuevo en <code>case_file_documents</code> apuntando al storage_key original.
+          </div>
+          <div class="phase-code">
+            <pre><code>// storage key: inbox/{userId}/{documentId}.{ext}
+buildInboxKey(userId, documentId, ext)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">1b</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Creación del expediente placeholder (Fase 1)</div>
+          <div class="phase-desc">
+            Todos los archivos del batch se agrupan en <strong>un solo expediente</strong>. El service crea inmediatamente un <code>case_file</code> con número de borrador (<code>BORRADOR-{fecha}-{uuid}</code>), <code>processing_phase = 'analyzing'</code>, y estado inicial <code>INICIADO</code>. Los documentos quedan vinculados al case via <code>case_file_id</code>.<br><br>
+            Esta respuesta ya incluye el <code>caseId</code> → el frontend puede redirigir al usuario a la ficha del expediente aunque la extracción todavía no terminó.
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">1c</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Enqueue del job de extracción</div>
+          <div class="phase-desc">
+            Se publica un único mensaje <code>extract.request</code> en NATS JetStream con el <code>caseId</code> y la lista de documentos. El stream usa <strong>RetentionPolicy.Workqueue</strong>: el mensaje persiste hasta que el consumer lo acknowledges exitosamente. Si el API se reinicia antes del ack, el mensaje se reentrega automáticamente.
+          </div>
+          <div class="phase-code">
+            <pre><code>// contracts.ts
+interface ExtractRequest {
+  jobId: string
+  caseId: string
+  documents: Array&lt;{
+    documentId: string
+    filename:   string
+    mime:       string
+    storageKey: string
+  }&gt;
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2a</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Consumo del job — idempotency check</div>
+          <div class="phase-desc">
+            El <code>PipelineService</code> consume el mensaje y verifica que el case sigue en <code>processing_phase = 'analyzing'</code>. Si ya está en <code>complete</code> o <code>preview</code> (procesado por una entrega anterior), el job es un no-op y se ackea para evitar loops. Los DOCX se convierten a texto con <strong>mammoth</strong> en este paso (el LLM no lee <code>.docx</code> nativo); PDF e imágenes pasan como bytes crudos. Cualquier MIME que igual no se pueda procesar se marca con <code>processing_error</code> y se omite.
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2b</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Extracción LLM (Fase 2)</div>
+          <div class="phase-desc">
+            Los documentos se descargan del storage como raw bytes y se envían directamente al LLM — <strong>sin OCR intermedio</strong>. El LLM recibe los PDFs e imágenes como adjuntos multimodales, y el texto de los DOCX (ya convertido con mammoth) como bloque de texto en el mismo prompt. Devuelve un único JSON con toda la estructura del expediente.<br><br>
+            El system prompt instruye al LLM con 10 reglas de normalización (fechas en YYYY-MM-DD, CUIT sin separadores, montos numéricos, prioridad judicial sobre administrativa) y una sección crítica sobre <strong>actos procesales</strong> — es lo que alimenta el motor de plazos.
+          </div>
+          <div class="phase-code">
+            <pre><code>// Ventana de ack: 15 minutos (batch de PDFs pesados puede demorar)
+ACK_WAIT_NS = 15 * 60 * 1_000_000_000
+MAX_DELIVER = 4  // reintentos antes de DLQ</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2c</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Enriquecimiento del expediente</div>
+          <div class="phase-desc">
+            El JSON extraído se valida con Zod (<code>extractedCaseSchema</code>) — campos inválidos o con tipo incorrecto se coercionan a <code>null</code> en lugar de fallar el parse completo. Luego se actualizan las tablas satélite del expediente:
+          </div>
+          <div class="phase-code">
+            <pre><code>case_file_plaintiff        — actor
+case_file_accident         — datos del accidente
+case_file_medical          — diagnósticos, tratamientos
+case_file_insurance        — aseguradora (ART)
+case_file_employer         — empleador
+case_file_admin_proceedings— trámite ante comisión médica
+case_file_parties          — demandados + abogados</code></pre>
+          </div>
+          <div class="phase-desc" style="margin-top:10px;">
+            Para el número de expediente se intenta asignar el extraído por el LLM. Si ya existe (caso de re-upload del mismo expediente), se prueba con sufijo: <code>17236 (1)</code>, <code>17236 (2)</code>… hasta 50. Finalmente <code>processing_phase</code> pasa a <code>'complete'</code>.
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2d</div>
+          <div class="phase-line"></div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Generación de plazos</div>
+          <div class="phase-desc">
+            Inmediatamente después del enriquecimiento, se llama a <code>DeadlinesService.generateForCase()</code> con la lista de <code>procedural_acts</code> extraídos. Este paso genera los plazos judiciales y persiste el estado <code>'complete'</code> aunque falle.
+          </div>
+        </div>
+      </div>
+
+      <div class="phase-step">
+        <div class="phase-left">
+          <div class="phase-num active">2e</div>
+        </div>
+        <div class="phase-content">
+          <div class="phase-title">Touch de actividad procesal</div>
+          <div class="phase-desc">
+            Como último paso — después de plazos y ciclo de vida —, se actualiza <code>case_files.last_activity_at = now()</code>. Este timestamp reinicia el contador del timer de caducidad pasiva (ver sección más abajo). La actualización es fire-and-forget: un fallo solo retrasa el próximo aviso de caducidad; no marca el expediente como preview.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Estados de processing_phase ── -->
+  <section>
+    <h2>Estados de processing_phase</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Estado</th><th>Qué significa</th><th>Qué ve el usuario</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="status status-analyzing">analyzing</span></td>
+            <td>El LLM está procesando. Fase 1 completada, Fase 2 en progreso.</td>
+            <td>Badge animado "Procesando" en la lista y en la ficha.</td>
+          </tr>
+          <tr>
+            <td><span class="status status-complete">complete</span></td>
+            <td>Extracción exitosa. Toda la metadata está disponible.</td>
+            <td>Ficha completa con todos los campos.</td>
+          </tr>
+          <tr>
+            <td><span class="status status-preview">preview</span></td>
+            <td>La extracción falló (LLM error, sin archivos legibles) o no hubo documentos soportados. El expediente existe pero sin metadata.</td>
+            <td>Ficha vacía, mensaje de error visible.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout" style="margin-top:16px;">
+      <strong>Recuperación de huérfanos:</strong> al arrancar el API, el <code>ProcessingService</code> busca expedientes en estado <code>analyzing</code> con <code>updated_at</code> más viejo que 30 minutos y los resetea a <code>preview</code>. Esto evita que un caso quede pegado en "Procesando" para siempre si el API se cayó en medio de una extracción.
+    </div>
+  </section>
+
+  <!-- ── LLM / Extracción ── -->
+  <section>
+    <h2>Extracción de metadata — LLM</h2>
+
+    <h3>Schema extraído</h3>
+    <p>El LLM devuelve un único JSON que el sistema valida con Zod. Cada sección cubre una entidad del expediente:</p>
+
+    <div class="card-grid" style="margin-bottom:20px;">
+      <div class="card">
+        <h3>Expediente</h3>
+        <ul>
+          <li><strong>case_number</strong> — único requerido</li>
+          <li>title, court, jurisdiction</li>
+          <li>department, process_type</li>
+          <li>legal_matter, status</li>
+          <li>filing_date, claim_amount</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Actor / Partes</h3>
+        <ul>
+          <li>plaintiff: nombre, DNI, CUIL, nacimiento, domicilio</li>
+          <li>defendants[]: nombre, tipo, CUIT</li>
+          <li>lawyers[]: nombre, matrícula, a quién representa</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Contexto médico-laboral</h3>
+        <ul>
+          <li>employer: empresa, CUIT, actividad</li>
+          <li>insurance_company: ART, CUIT, NRO siniestro</li>
+          <li>accident: fecha, lugar, mecanismo</li>
+          <li>medical: diagnósticos, tratamientos, incapacidad</li>
+          <li>administrative_proceedings: comisión médica</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card-grid-2">
+      <div class="card">
+        <h3>Actos procesales</h3>
+        <ul>
+          <li><strong>document_type</strong>: CEDULA | SENTENCIA | PROVIDENCIA | OFICIO | ESCRITO | DEMANDA | OTRO</li>
+          <li><strong>act_type</strong>: uno de 8 valores predefinidos o null</li>
+          <li><strong>document_date</strong>: fecha del documento</li>
+          <li><strong>notification_date</strong>: fecha de notificación — desde acá corre el plazo</li>
+          <li><strong>description</strong>: descripción en español</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Otros campos</h3>
+        <ul>
+          <li>legal_claim: monto pedido, argumentos legales, desafíos constitucionales</li>
+          <li>important_dates[]: lista de fechas relevantes con descripción</li>
+          <li>documents_detected[]: tipos de documentos encontrados</li>
+          <li>summary: resumen factual en español, máx 250 palabras</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout-red" style="margin-top:20px;">
+      <strong>notification_date vs document_date:</strong> el LLM distingue explícitamente entre la fecha impresa en el documento y la fecha en que la parte fue notificada (p.ej. la fecha de diligenciamiento de la cédula). Los plazos judiciales corren desde la notificación — usar <code>document_date</code> correría el plazo un día antes. Si el LLM no puede determinar la <code>notification_date</code> con seguridad, devuelve null y el motor de plazos omite ese acto.
+    </div>
+
+    <h3>Reglas de normalización</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campo</th><th>Regla</th><th>Ejemplo</th></tr></thead>
+        <tbody>
+          <tr><td>Fechas</td><td>YYYY-MM-DD, nunca inventar</td><td><code>2026-06-18</code></td></tr>
+          <tr><td>CUIT/CUIL</td><td>Sin separadores</td><td><code>20375981603</code></td></tr>
+          <tr><td>Montos</td><td>Numérico punto decimal</td><td><code>59494892.60</code></td></tr>
+          <tr><td>Textos libres</td><td>Siempre en español</td><td><code>"Fractura de radio derecho"</code></td></tr>
+          <tr><td>Duplicados</td><td>Un acto de páginas duplicadas = 1 registro</td><td>—</td></tr>
+          <tr><td>Conflictos</td><td>Judicial > notificación > comisión médica > ART > otros</td><td>—</td></tr>
+          <tr><td>Incertidumbre</td><td><code>null</code> — nunca adivinar</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Motor de plazos ── -->
+  <section>
+    <h2>Motor de plazos (DeadlinesService)</h2>
+
+    <p>Recibe los <code>procedural_acts</code> extraídos por el LLM y genera automáticamente los plazos judiciales. Corre como penúltimo paso de la Fase 2 — si falla, el expediente igual queda en <code>complete</code> (los plazos no bloquean la extracción).</p>
+    <p>El tipo <code>CADUCIDAD_INSTANCIA</code> puede llegar a la tabla <code>case_deadlines</code> por dos vías distintas: <strong>(1) extracción LLM</strong> — el documento menciona explícitamente una intimación por falta de impulso, y entra por este flujo como cualquier otro acto; <strong>(2) timer pasivo</strong> — <code>AlertsService.checkPassiveCaducidad()</code> lo genera cuando el expediente lleva 80+ días hábiles sin actividad. Los plazos del timer se identifican por <code>triggered_by_act.source = 'PASSIVE_CADUCIDAD_TIMER'</code> y se eliminan automáticamente si el expediente vuelve a moverse.</p>
+
+    <h3>Reglas CPCCN</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>act_type</th><th>Plazo generado</th><th>Días hábiles</th><th>Tipo</th></tr></thead>
+        <tbody>
+          <tr><td><code>TRASLADO_DEMANDA</code></td><td>Contestar demanda</td><td>15</td><td>FATAL</td></tr>
+          <tr><td><code>TRASLADO_RECONVENCION</code></td><td>Contestar reconvención</td><td>15</td><td>FATAL</td></tr>
+          <tr><td><code>APERTURA_PRUEBA</code></td><td>Ofrecer prueba</td><td>10</td><td>FATAL</td></tr>
+          <tr><td><code>SENTENCIA_PRIMERA_INSTANCIA</code></td><td>Apelar sentencia</td><td>5</td><td>FATAL</td></tr>
+          <tr><td><code>EXPRESION_AGRAVIOS</code></td><td>Contestar agravios</td><td>6</td><td>FATAL</td></tr>
+          <tr><td><code>INTIMACION_PAGO_ART_504</code></td><td>Oponer excepciones</td><td>5</td><td>FATAL</td></tr>
+          <tr><td><code>CADUCIDAD_INSTANCIA</code></td><td>Impulsar proceso</td><td>90</td><td>FATAL</td></tr>
+          <tr><td><code>OTRO</code></td><td>—</td><td>—</td><td>Sin regla</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Algoritmo de conteo — Art. 156 CPCCN</h3>
+    <p>El día de la notificación no se cuenta. El conteo arranca al día siguiente, y el <strong>primer día hábil posterior es el día 1</strong> (no el día 0). Los días inhábiles (fines de semana + feriados judiciales + feria enero/julio) se saltan.</p>
+
+    <pre><code>// Ejemplo: notificación 30/04/2026 (jueves), plazo 5 días hábiles
+// 01/05 feriado → 02-03/05 fin de semana
+// Día 1: lunes 04/05 · Día 2: martes 05/05 · Día 3: miércoles 06/05
+// Día 4: jueves 07/05 · Día 5: viernes 08/05
+// → fecha_vencimiento: 2026-05-08</code></pre>
+
+    <div class="callout-blue">
+      <strong>HolidaysService:</strong> los feriados judiciales se leen de la tabla <code>judicial_holidays</code> en Supabase y se cachean en memoria por año. Si la consulta falla (red, RLS), el service retorna un <code>Set</code> vacío y continúa — el plazo se calcula sin feriados antes de fallar el pipeline entero. El cache vive mientras el proceso corre; se invalida solo con un restart.
+    </div>
+
+    <h3>Deduplicación de actos</h3>
+    <p>El LLM puede extraer el mismo acto de páginas duplicadas. El motor de plazos deduplica por clave <code>(act_type, notification_date)</code> antes de insertar. También borra los plazos auto-generados anteriores antes de insertar los nuevos — si el expediente se re-procesa, los plazos se recalculan limpios. Los plazos marcados con <code>is_auto_generated = false</code> (creados manualmente) no se tocan.
+    </p>
+  </section>
+
+  <!-- ── Alertas ── -->
+  <section>
+    <h2>Alertas de vencimiento (AlertsService)</h2>
+
+    <p>Un cron corre diariamente a las 8:00 AM y chequea todos los plazos en estado <code>PENDIENTE</code>. Para cada plazo calcula los días hábiles restantes y dispara alertas según umbrales.</p>
+
+    <h3>Umbrales y canales</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Umbral</th><th>Días hábiles restantes</th><th>Canal</th><th>Implementado</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="alert-t10">T-10</span></td>
+            <td>≤ 10</td>
+            <td>In-app (notificación UI)</td>
+            <td>Registrado en DB, UI pendiente</td>
+          </tr>
+          <tr>
+            <td><span class="alert-t5">T-5</span></td>
+            <td>≤ 5</td>
+            <td>Email via Resend</td>
+            <td>✅</td>
+          </tr>
+          <tr>
+            <td><span class="alert-t2">T-2</span></td>
+            <td>≤ 2</td>
+            <td>Email urgente via Resend</td>
+            <td>✅</td>
+          </tr>
+          <tr>
+            <td><span class="alert-t0">T-0</span></td>
+            <td>= 0 (vence hoy o vencido)</td>
+            <td>Bloqueo visual en UI</td>
+            <td>Registrado en DB, UI pendiente</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Idempotencia y deduplicación de alertas</h3>
+    <p>Cada alerta disparada se registra en la tabla <code>deadline_alerts</code> con clave <code>(deadline_id, alert_type)</code>. En la siguiente corrida del cron, esa combinación se excluye — el mismo email no se manda dos veces. Si el cron estuvo caído varios días y varios umbrales se cruzaron a la vez, se registran todos pero solo se envía el <strong>más urgente</strong> para no mandar una ráfaga de emails viejos.</p>
+
+    <h3>Email de alerta</h3>
+    <p>El destinatario es el <code>responsible_attorney_id</code> del expediente, con fallback al <code>created_by</code>. El email incluye: descripción del plazo, número de expediente, carátula, fecha de vencimiento, días hábiles restantes, y un link directo a la ficha. El asunto usa 🚨 para T-2 y ⚠️ para T-5.</p>
+
+    <div class="callout">
+      <strong>Variables de entorno requeridas:</strong> <code>RESEND_API_KEY</code> y <code>RESEND_FROM_EMAIL</code>. Si alguna falta, el service loguea un warning y omite el email sin fallar. <code>APP_URL</code> configura el dominio del link en el email (default: <code>http://localhost:3000</code>).
+    </div>
+
+    <h3>Endpoint de prueba</h3>
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/deadlines/alerts/run</span>
+      </div>
+      <div class="endpoint-desc">Dispara el chequeo completo a demanda: primero <code>checkPassiveCaducidad()</code> y luego <code>runDailyCheck()</code>, exactamente igual que el cron. Requiere rol <code>admin</code>. Responde <code>{ checked: N, sent: M, caducidad: { scanned, created, cleared } }</code>. Idempotente — correrlo dos veces seguidas da <code>sent: 0</code> y <code>created: 0</code> en la segunda.</div>
+    </div>
+  </section>
+
+  <!-- ── Caducidad pasiva ── -->
+  <section>
+    <h2>Caducidad pasiva — timer de 90 días hábiles</h2>
+
+    <p>El art. 310 CPCCN declara caducada la instancia cuando ninguna de las partes impulsa el proceso durante 90 días hábiles. El motor de plazos original solo detectaba ese riesgo si el LLM extraía un acto <code>CADUCIDAD_INSTANCIA</code> de un documento, lo que deja ciego el caso más frecuente: el expediente que nadie tocó y sobre el cual no hay ningún documento nuevo que subir.</p>
+
+    <p>El timer pasivo cierra ese hueco. Corre al inicio de cada corrida diaria del cron (antes de <code>runDailyCheck</code>) e inspecciona todos los expedientes activos.</p>
+
+    <h3>Columna last_activity_at (migración 26)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Campo</th><th>Tabla</th><th>Tipo</th><th>Default</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>last_activity_at</code></td>
+            <td><code>case_files</code></td>
+            <td><code>timestamptz NOT NULL</code></td>
+            <td><code>now()</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Se actualiza en dos puntos del backend — ninguno requiere acción manual:</p>
+    <ul style="padding-left:20px;color:var(--text-muted);font-size:13.5px;margin-bottom:16px;">
+      <li style="margin-bottom:6px;"><strong style="color:var(--text);">Pipeline (paso 2e):</strong> al completar exitosamente la extracción de cualquier documento nuevo.</li>
+      <li><strong style="color:var(--text);">LifecycleService.commit():</strong> en cada transición de estado, AUTO o MANUAL — va en el mismo <code>UPDATE</code> que <code>current_status_id</code> para que no pueda quedar desincronizado.</li>
+    </ul>
+
+    <div class="callout-blue">
+      <strong>Default seguro:</strong> para expedientes existentes antes de la migración 26, <code>last_activity_at</code> arranca en el momento de aplicar la migración. No hay forma de reconstruir la última actuación real, y arrancar el contador desde hoy falla del lado seguro: a lo sumo el sistema avisa tarde, nunca declara una caducidad que no ocurrió.
+    </div>
+
+    <h3>Lógica de checkPassiveCaducidad()</h3>
+    <div class="phase-flow" style="margin-top:16px;">
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">1</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Barrido de expedientes activos</div>
+          <div class="phase-desc">Carga todos los <code>case_files</code> con <code>deleted_at IS NULL</code> cuyo <code>current_status.is_terminal = false</code>. El filtro se aplica en memoria — mismo patrón que <code>loadPendingDeadlines</code> — para evitar los filtros frágiles de PostgREST sobre tablas embebidas.</div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">2</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Cálculo de días hábiles sin actividad</div>
+          <div class="phase-desc">Para cada expediente: <code>businessDaysUntil(last_activity_at, today, getHolidays)</code>. Usa los mismos feriados judiciales que el motor de plazos — los días de feria y feriados nacionales no cuentan como silencio procesal.</div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">3</div><div class="phase-line"></div></div>
+        <div class="phase-content">
+          <div class="phase-title">Apertura del plazo (≥ 80 días hábiles)</div>
+          <div class="phase-desc">
+            El umbral son <strong>80 días hábiles</strong>, no 90, a propósito: se abre el plazo 10 días hábiles antes de que realmente venza para que las alertas T-10 / T-5 / T-2 del <code>runDailyCheck</code> tengan margen de dispararse. La <code>fecha_vencimiento</code> sigue siendo <code>last_activity_at + 90 días hábiles</code> — solo el momento de creación se anticipa.<br><br>
+            Si ya existe un plazo <code>CADUCIDAD_INSTANCIA</code> en estado <code>PENDIENTE</code> para ese expediente, no se inserta un duplicado (idempotente).
+          </div>
+          <div class="phase-code">
+            <pre><code>// triggered_by_act del plazo generado por el timer:
+{
+  source:             "PASSIVE_CADUCIDAD_TIMER",
+  act_type:           "CADUCIDAD_INSTANCIA",
+  last_activity_at:   "2026-02-10",
+  dias_sin_actividad: 94
+}</code></pre>
+          </div>
+        </div>
+      </div>
+      <div class="phase-step">
+        <div class="phase-left"><div class="phase-num active">4</div></div>
+        <div class="phase-content">
+          <div class="phase-title">Limpieza si el expediente volvió a moverse (&lt; 80 días)</div>
+          <div class="phase-desc">Si el expediente acaba de recibir un nuevo documento o una transición de estado, <code>diasSinActividad</code> habrá bajado por debajo de 80 y el plazo auto-generado por el timer ya no tiene sentido. Se borra <strong>solo si</strong> <code>triggered_by_act->>source = 'PASSIVE_CADUCIDAD_TIMER'</code> — los plazos <code>CADUCIDAD_INSTANCIA</code> que el LLM extrajo de un documento real (intimación del juzgado) sobreviven, porque reflejan un hecho procesal externo.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── API ── -->
+  <section>
+    <h2>Referencia de API</h2>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/documents/upload</span>
+      </div>
+      <div class="endpoint-desc">
+        Multipart/form-data. Campo: <code>files</code> (1–20 archivos). Formatos: PDF, JPG, PNG, WEBP, DOCX (DOCX se convierte a texto con mammoth antes del LLM). Límite por archivo: <code>MAX_DOCUMENT_SIZE_MB</code> (default 25 MB).<br>
+        Respuesta: <code>{ documents: DocumentRow[], errors: { file, error }[] }</code>.<br>
+        Requiere <code>Authorization: Bearer &lt;jwt&gt;</code>.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-post">POST</span>
+        <span class="endpoint-path">/cases/:id/documents</span>
+      </div>
+      <div class="endpoint-desc">
+        Adjunta nuevos documentos a un expediente ya existente y re-dispara el pipeline completo sobre todos sus documentos.<br><br>
+        <strong>Diferencia clave respecto a <code>/documents/upload</code>:</strong> no crea un expediente placeholder; en cambio, asocia los archivos al <code>caseId</code> dado y re-extrae el caso entero (nuevos + existentes en conjunto). Esto es necesario porque <code>enrichCase</code> reemplaza las tablas satélite — enviar solo el nuevo PDF borraría los datos extraídos del resto.<br><br>
+        El <code>processing_phase</code> del expediente vuelve a <code>'analyzing'</code> antes del enqueue. Sin ese flip, el idempotency check del consumer descartaría el job como no-op.<br><br>
+        Misma autenticación que el resto: <code>Authorization: Bearer &lt;jwt&gt;</code>. Requiere ser creador, abogado responsable, socio o admin del caso — verificado por <code>CaseAccessService</code> antes de aceptar los archivos.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/deadlines/count?dias=10</span>
+      </div>
+      <div class="endpoint-desc">
+        Cuántos plazos en estado <code>PENDIENTE</code> vencen dentro de los próximos <code>dias</code> días corridos, acotado a los expedientes visibles para el usuario autenticado (creador, responsable o rol <code>socio</code>/<code>admin</code>).<br>
+        Parámetro <code>dias</code>: entero 1–365, default 10. Respuesta: <code>{ count: N }</code>.<br>
+        Alimenta la stat card <em>Vencimientos Pendientes</em> del dashboard. El valor se resuelve en el cliente al montar la página — el server component del dashboard no lo espera para renderizar.
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/processing?limit=50&include_terminal=false</span>
+      </div>
+      <div class="endpoint-desc">
+        Lista de documentos procesados, ordenados por fecha de carga descendente. Incluye join a <code>case_files</code> para mostrar estado del expediente.<br>
+        <code>include_terminal=false</code> (default) excluye documentos con <code>ERROR</code>. Los documentos <code>COMPLETED</code> no se excluyen aunque el case esté en <code>analyzing</code> — el badge de la UI lee <code>processing_phase</code> del expediente.<br>
+        Requiere <code>Authorization: Bearer &lt;jwt&gt;</code>.
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Configuración ── -->
+  <section>
+    <h2>Variables de entorno</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Requerida</th><th>Default</th><th>Descripción</th></tr></thead>
+        <tbody>
+          <tr><td><code>NATS_URL</code></td><td>No</td><td><code>nats://nats:4222</code></td><td>URL del servidor NATS</td></tr>
+          <tr><td><code>RESEND_API_KEY</code></td><td>Para emails</td><td>—</td><td>API key de Resend para envío de alertas</td></tr>
+          <tr><td><code>RESEND_FROM_EMAIL</code></td><td>Para emails</td><td>—</td><td>Dirección remitente de las alertas</td></tr>
+          <tr><td><code>APP_URL</code></td><td>No</td><td><code>http://localhost:3000</code></td><td>Base URL para links en emails de alerta</td></tr>
+          <tr><td><code>MAX_DOCUMENT_SIZE_MB</code></td><td>No</td><td><code>25</code></td><td>Límite por archivo en MB</td></tr>
+          <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Sí</td><td>—</td><td>Key para llamadas al LLM de extracción</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── Gaps vs MVP ── -->
+  <section>
+    <h2>Gaps vs PRD MVP</h2>
+    <div class="callout-green">
+      <strong>T-0 banner implementado (v1.2):</strong> cuando algún plazo del expediente tiene <code>fecha_vencimiento ≤ hoy</code> y <code>estado = 'PENDIENTE'</code>, se muestra un banner rojo sólido (<code>bg-red-600</code>, texto blanco, <code>role="alert"</code>) fuera y encima de las tabs, visible sin necesidad de navegar a la pestaña Plazos. Se reutilizan los datos ya cargados en el server component — sin llamada extra.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Stat card "Vencimientos Pendientes" implementada (v1.2):</strong> el dashboard muestra el count real de plazos pendientes en los próximos 10 días vía <code>GET /deadlines/count?dias=10</code>. Muestra <code>0</code> cuando no hay ninguno (antes mostraba siempre <code>—</code>). El skeleton reemplaza al <code>—</code> durante la carga; en error de red vuelve a <code>—</code>.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Caducidad pasiva implementada (v1.2):</strong> el timer de 90 días hábiles corre diariamente junto al cron de alertas. El riesgo de caducidad ya no depende de que exista un documento que el LLM pueda analizar — se detecta por ausencia de actividad. Ver sección "Caducidad pasiva" más arriba.
+    </div>
+    <div class="callout-green" style="margin-top:12px;">
+      <strong>Ingesta de DOCX implementada (v1.3):</strong> el PRD lista DOCX como formato del MVP. Antes se aceptaba en el upload pero la extracción lo descartaba, dejando el expediente vacío. Ahora <code>PipelineService</code> convierte el DOCX a texto con <strong>mammoth</strong> antes de llamar al LLM. El allowlist se recortó a lo que el pipeline procesa realmente (PDF, imágenes, DOCX): <code>.doc</code> legacy y XML de CEDs quedan para v1.0 (parseo estructurado SNEJ).
+    </div>
+    <div class="callout" style="margin-top:12px;">
+      <strong>T-10 in-app pendiente:</strong> T-10 se registra en <code>deadline_alerts</code> para trazabilidad pero todavía no dispara ninguna notificación en la UI. El banner de T-0 cubre el caso más urgente; T-10 queda para una iteración posterior.
+    </div>
+    <div class="callout-red" style="margin-top:12px;">
+      <strong>Campo "confianza" eliminado:</strong> el PRD menciona que extracciones con confianza &lt; 0.7 se marcan para revisión humana. Este campo fue eliminado deliberadamente porque el LLM evaluaba su propia confianza sin criterio objetivo externo — no hay ground truth con qué comparar. Decisión: el usuario humano revisa la ficha y corrige si es necesario.
+    </div>
+    <div class="callout" style="margin-top:12px;">
+      <strong>Ingesta por email:</strong> el PRD incluye un canal IMAP como v1.0, no MVP. El sistema actual es solo carga manual. El flujo está diseñado para extenderse: el <code>DocumentsService</code> ya soporta <code>origin: 'EMAIL'</code> en el schema.
+    </div>
+  </section>
+
+</div>

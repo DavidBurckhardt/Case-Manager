@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/auth/confirm']
 
+/** Ruta del segundo factor: requiere sesión, pero no un aal2 ya completado. */
+const MFA_VERIFY_ROUTE = '/mfa-verify'
+
 function isPublicRoute(pathname: string) {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route))
 }
@@ -45,6 +48,22 @@ export async function proxy(request: NextRequest) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
+  }
+
+  // Segundo factor pendiente. El chequeo va acá y no en el layout de (protected)
+  // porque las route handlers de /api no pasan por ese layout: una sesión aal1
+  // podría llamarlas igual.
+  //
+  // nextLevel === 'aal2' significa que el usuario TIENE un factor verificado; si
+  // currentLevel sigue en 'aal1', entró con contraseña pero no completó el
+  // segundo paso. Ambos valores salen de los claims del JWT — no hay red acá.
+  if (user && !isPublicRoute(pathname) && pathname !== MFA_VERIFY_ROUTE) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (aal?.currentLevel === 'aal1' && aal?.nextLevel === 'aal2') {
+      const verifyUrl = new URL(MFA_VERIFY_ROUTE, request.url)
+      verifyUrl.searchParams.set('redirectTo', pathname)
+      return NextResponse.redirect(verifyUrl)
+    }
   }
 
   return supabaseResponse
